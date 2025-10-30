@@ -8,6 +8,7 @@
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.type.watch" />
 
     <!-- Health Connect permissions for the imported measurement types. Must
          list every type in enabledHealthMetrics: Health Connect cannot grant
