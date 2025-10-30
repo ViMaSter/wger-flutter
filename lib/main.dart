@@ -19,6 +19,7 @@
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
@@ -275,8 +276,51 @@ class MainApp extends StatelessWidget {
   }
 }
 
-class WatchScreen extends StatelessWidget {
+class WatchScreen extends StatefulWidget {
   const WatchScreen();
+
+  @override
+  State<WatchScreen> createState() => _WatchScreenState();
+}
+
+class _WatchScreenState extends State<WatchScreen> {
+  static const MethodChannel _channel = MethodChannel('com.wger.watch');
+  String? _dataText = 'Waiting for data...';
+  bool _isDisposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    int attempt = 0;
+    while (!_isDisposed) {
+      try {
+        final String? data = await _channel.invokeMethod<String>('getData');
+        if (!_isDisposed) {
+          setState(() {
+            _dataText = data;
+          });
+        }
+      } catch (e) {
+        if (!_isDisposed) {
+          ++attempt;
+          setState(() {
+            _dataText = 'Error$attempt: $e';
+          });
+        }
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +333,7 @@ class WatchScreen extends StatelessWidget {
               final String shapeText = shape == WearShape.round ? 'Round' : 'Square';
               final String modeText = mode == WearMode.active ? 'Active' : 'Ambient';
               return Center(
-                child: Text('WearMode: $modeText\nWearShape: $shapeText'),
+                child: Text('WearMode: $modeText\nWearShape: $shapeText\nData: $_dataText'),
               );
             },
           );
