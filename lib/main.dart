@@ -16,11 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
+import 'package:wear_plus/wear_plus.dart';
 import 'package:wger/core/locator.dart';
 import 'package:wger/exceptions/http_exception.dart';
 import 'package:wger/helpers/errors.dart';
@@ -128,7 +130,18 @@ void main() async {
     return true;
   };
 
-  // Application
+  final deviceInfoPlugin = DeviceInfoPlugin();
+  final deviceInfo = await deviceInfoPlugin.deviceInfo;
+  final allInfo = deviceInfo.data;
+
+  // if AndroidDeviceInfo and model contains `gwear`, render WatchScreen
+  if (deviceInfo is AndroidDeviceInfo &&
+      allInfo['model'] != null &&
+      (allInfo['model'] as String).toLowerCase().contains('gwear')) {
+    runApp(const riverpod.ProviderScope(child: WatchScreen()));
+    return;
+  } 
+
   runApp(const riverpod.ProviderScope(child: MainApp()));
 }
 
@@ -257,6 +270,30 @@ class MainApp extends StatelessWidget {
             supportedLocales: AppLocalizations.supportedLocales,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class WatchScreen extends StatelessWidget {
+  const WatchScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: WatchShape(
+        builder: (BuildContext context, WearShape shape, Widget? child) {
+          return AmbientMode(
+            builder: (context, mode, child) {
+              final String shapeText = shape == WearShape.round ? 'Round' : 'Square';
+              final String modeText = mode == WearMode.active ? 'Active' : 'Ambient';
+              return Center(
+                child: Text('WearMode: $modeText\nWearShape: $shapeText'),
+              );
+            },
+          );
+        },
       ),
     );
   }
