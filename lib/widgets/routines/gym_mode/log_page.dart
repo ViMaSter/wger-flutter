@@ -33,6 +33,8 @@ import 'package:wger/providers/routines.dart';
 import 'package:wger/screens/configure_plates_screen.dart';
 import 'package:wger/widgets/core/core.dart';
 import 'package:wger/widgets/core/progress_indicator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 import 'package:wger/widgets/routines/forms/reps_unit.dart';
 import 'package:wger/widgets/routines/forms/rir.dart';
 import 'package:wger/widgets/routines/forms/weight_unit.dart';
@@ -48,6 +50,82 @@ class LogPage extends ConsumerStatefulWidget {
 
   @override
   _LogPageState createState() => _LogPageState();
+}
+
+/// A small, local linkify widget that underlines links and makes them tappable.
+/// This avoids adding an external dependency. It recognizes http(s) URLs.
+class LinkifyText extends StatelessWidget {
+  final String text;
+  final TextAlign? textAlign;
+  final TextStyle? style;
+  final TextStyle? linkStyle;
+
+  const LinkifyText(
+    this.text, {
+    super.key,
+    this.textAlign,
+    this.style,
+    this.linkStyle,
+  });
+
+  static final _urlRegExp = RegExp(r"(https?:\/\/[^\s]+)", caseSensitive: false);
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = _urlRegExp.allMatches(text).toList();
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        textAlign: textAlign,
+        style: style,
+      );
+    }
+
+    final spans = <TextSpan>[];
+    var lastEnd = 0;
+
+    for (final m in matches) {
+      if (m.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, m.start), style: style));
+      }
+
+      final url = text.substring(m.start, m.end);
+      spans.add(TextSpan(
+        text: url,
+        style: linkStyle ?? style?.copyWith(decoration: TextDecoration.underline),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () async {
+            final uri = Uri.tryParse(url);
+            if (uri != null) {
+              try {
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not open $url.')),
+                  );
+                }
+              } catch (_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not open $url.')),
+                );
+              }
+            }
+          },
+      ));
+
+      lastEnd = m.end;
+    }
+
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd), style: style));
+    }
+
+    return RichText(
+      textAlign: textAlign ?? TextAlign.start,
+      text: TextSpan(children: spans, style: style),
+    );
+  }
 }
 
 class _LogPageState extends ConsumerState<LogPage> {
@@ -146,7 +224,18 @@ class _LogPageState extends ConsumerState<LogPage> {
         ),
         if (log.exercise.showPlateCalculator) const LogsPlatesWidget(),
         if (slotEntryPage.setConfigData!.comment.isNotEmpty)
-          Text(slotEntryPage.setConfigData!.comment, textAlign: TextAlign.center),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
+            child: LinkifyText(
+              slotEntryPage.setConfigData!.comment,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+              linkStyle: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(decoration: TextDecoration.underline, color: Theme.of(context).colorScheme.primary),
+            ),
+          ),
         const SizedBox(height: 10),
         Expanded(
           child: (state.routine.filterLogsByExercise(log.exercise.id!).isNotEmpty)
