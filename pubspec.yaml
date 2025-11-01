@@ -89,6 +89,7 @@ dependencies:
   flutter_local_notifications: ^23.0.0
   wear_plus: ^1.2.3
   device_info_plus: ^12.2.0
+  watch_connectivity: ^0.2.3
 
 dev_dependencies:
   flutter_test:
