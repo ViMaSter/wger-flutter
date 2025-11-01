@@ -140,8 +140,8 @@ void main() async {
   // if AndroidDeviceInfo and model contains `gwear`, render WatchScreen
   if (deviceInfo is AndroidDeviceInfo &&
       allInfo['model'] != null &&
-      (allInfo['model'] as String).toLowerCase().contains('gwear')) {
-    runApp(const riverpod.ProviderScope(child: WatchScreen()));
+      (allInfo['model'] as String).toLowerCase().contains('watch') || (allInfo['model'] as String).toLowerCase().contains('wear')) {
+    runApp(const WatchScreen());
     return;
   } 
 

@@ -23,6 +23,7 @@ import 'package:watch_connectivity/watch_connectivity.dart';
 import 'package:wear_plus/wear_plus.dart';
 import 'package:wger/main.dart';
 import 'package:logging/logging.dart';
+import 'package:vibration/vibration.dart';
 
 final Logger _logger = Logger('watch_screen');
 
@@ -69,42 +70,80 @@ class _WatchScreenState extends State<WatchScreen> {
     contextActions['exercise'] = onWorkoutChange;
     contextActions['timer'] = onTimerChange;
 
-    final watch = WatchConnectivity();
-    _logger.info('[WATCH CONNECTIVITY] Listening for context updates...');
-    watch.contextStream.listen((context) {
-      _logger.fine('Parsed watch context: $context');
-      if (!context.containsKey('state')) {
-        _logger.fine('No state key in context: $context');
-        return;
-      }
-
-      final action = contextActions[context['state']];
-      if (action == null) {
-        _logger.warning('No action found for context key: ${context["state"]}');
-        return;
-      }
-
+    (() async {
+      final watch = WatchConnectivity();
+      _logger.info('[WATCH CONNECTIVITY] Applying current state...');
       try {
-        final raw = context['data'];
-        if (raw is Map) {
+      final contexts = await watch.receivedApplicationContexts;
+      _logger.info('Initial watch context: $contexts');
+      for (final context in contexts) {
+        final action = contextActions[context['state']];
+        if (action == null) {
+          _logger.warning('No action found for initial context key: ${context["state"]}');
+          return;
+        }
+
+        try {
+          final raw = context['data'];
+          if (raw is! Map) {
+            _logger.warning('Context "data" is not a Map: $raw');
+            return;
+          }
+
+          final data = raw.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
+          _logger.info('Applying initial context data: $data');
+          action(data);
+        } catch (e, st) {
+          _logger.severe('Failed to convert context "data" to Map<String,dynamic>: $e', e, st);
+        }
+      }
+      _logger.info('[WATCH CONNECTIVITY] Listening for context updates...');
+      watch.contextStream.listen((context) {
+        _logger.info('Parsed watch context: $context');
+        if (!context.containsKey('state')) {
+          _logger.info('No state key in context: $context');
+          return;
+        }
+
+        final action = contextActions[context['state']];
+        if (action == null) {
+          _logger.warning('No action found for context key: ${context["state"]}');
+          return;
+        }
+
+        try {
+          final raw = context['data'];
+          if (raw is! Map) {
+            _logger.warning('Context "data" is not a Map: $raw');
+            return;
+          }
+
           final data = raw.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
           action(data);
-        } else {
-          _logger.warning('Context "data" is not a Map: $raw');
+        } catch (e, st) {
+          _logger.severe('Failed to convert context "data" to Map<String,dynamic>: $e', e, st);
         }
+      });
       } catch (e, st) {
-        _logger.severe('Failed to convert context "data" to Map<String,dynamic>: $e', e, st);
+        _logger.severe('Failed to get initial watch context: $e', e, st);
       }
-    });
+    })();
   }
 
   Timer? _countdownTask;
   void _startCountdown(DateTime endTime) {
     _countdownTask?.cancel();
-    _countdownTask = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _countdownTask = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final remainingSeconds = endTime.difference(DateTime.now()).inSeconds;
       final minutes = (remainingSeconds ~/ 60).toString();
       final seconds = (remainingSeconds % 60).toString().padLeft(2, '0');
+
+      if (remainingSeconds == 15) {
+        await Vibration.vibrate(pattern: [0, 75, 25, 75], intensities: [0, 255, 0, 192]);
+      }
+      if (remainingSeconds == 3 || remainingSeconds == 2 || remainingSeconds == 1) {
+        await Vibration.vibrate(duration: 150);
+      }
       if (remainingSeconds > 0) {
         setState(() {
           _remainingTimeText = '$minutes:$seconds';
@@ -115,7 +154,9 @@ class _WatchScreenState extends State<WatchScreen> {
       setState(() {
         _remainingTimeText = '0:00';
       });
-      HapticFeedback.vibrate();
+
+      _logger.warning("Large notice");
+      await Vibration.vibrate(duration: 1000);
       _countdownTask?.cancel();
     });
   }
@@ -137,8 +178,8 @@ class _WatchScreenState extends State<WatchScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: WatchShape(
-        builder: (BuildContext context, WearShape shape, Widget? child) {
+      child: Builder(
+        builder: (BuildContext context) {
           return AmbientMode(
             builder: (context, mode, child) {
               final weightStr = _weight;
