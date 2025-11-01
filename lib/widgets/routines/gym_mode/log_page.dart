@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart' as provider;
+import 'package:watch_connectivity/watch_connectivity.dart';
 import 'package:wger/exceptions/http_exception.dart';
 import 'package:wger/helpers/consts.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
@@ -543,6 +544,8 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
       if (widget.configData.weight != null) {
         _weightController.text = numberFormat.format(widget.configData.weight);
       }
+
+      updateWatch();
     });
   }
 
@@ -551,6 +554,22 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
     _repetitionsController.dispose();
     _weightController.dispose();
     super.dispose();
+  }
+
+  void updateWatch() {
+    final watch = WatchConnectivity();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final postFrameData = {
+        'state': 'exercise',
+        'data': {
+          'exerciseName': widget.configData.exercise.getTranslation(Localizations.localeOf(context).languageCode,).name,
+          'weight': _weightController.text,
+          'repetitions': _repetitionsController.text,
+        }
+      };
+      watch.updateApplicationContext(postFrameData);
+      print('[WATCH CONNECTIVITY] Sent exercise context (post-frame): $postFrameData');
+    });
   }
 
   void copyFromPastLog(Log pastLog) {
@@ -568,6 +587,7 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
 
       _log.rir = pastLog.rir;
       widget._logger.finer('Setting log rir to ${_log.rir}');
+      updateWatch();
     });
   }
 
@@ -596,6 +616,7 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
+                      updateWatch();
                     },
                   ),
                 ),
@@ -608,6 +629,7 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
+                      updateWatch();
                     },
                   ),
                 ),
@@ -625,6 +647,7 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
+                      updateWatch();
                     },
                   ),
                 ),
@@ -650,6 +673,7 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
+                      updateWatch();
                     },
                   ),
                 ),

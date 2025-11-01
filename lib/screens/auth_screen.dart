@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:watch_connectivity/watch_connectivity.dart';
 import 'package:wger/exceptions/http_exception.dart';
 import 'package:wger/helpers/consts.dart';
 import 'package:wger/helpers/errors.dart';
@@ -182,9 +183,6 @@ class _AuthCardState extends State<AuthCard> {
       // Login existing user
       late LoginActions res;
       if (_authMode == AuthMode.Login) {
-        // send username using a methodchannel com.wger.watch/data
-        const platform = MethodChannel('com.wger.watch');
-        await platform.invokeMethod('sendUsername', {'message': _authData['username']!});
         res = await context.read<AuthProvider>().login(
           _authData['username']!,
           _authData['password']!,

@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
+import 'package:watch_connectivity/watch_connectivity.dart';
 import 'package:wear_plus/wear_plus.dart';
 import 'package:wger/core/locator.dart';
 import 'package:wger/exceptions/http_exception.dart';
@@ -61,6 +62,7 @@ import 'package:wger/screens/routine_logs_screen.dart';
 import 'package:wger/screens/routine_screen.dart';
 import 'package:wger/screens/splash_screen.dart';
 import 'package:wger/screens/update_app_screen.dart';
+import 'package:wger/screens/watch_screen.dart';
 import 'package:wger/screens/weight_screen.dart';
 import 'package:wger/theme/theme.dart';
 import 'package:wger/widgets/core/about.dart';
@@ -271,73 +273,6 @@ class MainApp extends StatelessWidget {
             supportedLocales: AppLocalizations.supportedLocales,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class WatchScreen extends StatefulWidget {
-  const WatchScreen();
-
-  @override
-  State<WatchScreen> createState() => _WatchScreenState();
-}
-
-class _WatchScreenState extends State<WatchScreen> {
-  static const MethodChannel _channel = MethodChannel('com.wger.watch');
-  String? _dataText = 'Waiting for data...';
-  bool _isDisposed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchData();
-  }
-
-  Future<void> _fetchData() async {
-    int attempt = 0;
-    while (!_isDisposed) {
-      try {
-        final String? data = await _channel.invokeMethod<String>('getData');
-        if (!_isDisposed) {
-          setState(() {
-            _dataText = data;
-          });
-        }
-      } catch (e) {
-        if (!_isDisposed) {
-          ++attempt;
-          setState(() {
-            _dataText = 'Error$attempt: $e';
-          });
-        }
-        await Future.delayed(const Duration(seconds: 2));
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _isDisposed = true;
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: WatchShape(
-        builder: (BuildContext context, WearShape shape, Widget? child) {
-          return AmbientMode(
-            builder: (context, mode, child) {
-              final String shapeText = shape == WearShape.round ? 'Round' : 'Square';
-              final String modeText = mode == WearMode.active ? 'Active' : 'Ambient';
-              return Center(
-                child: Text('WearMode: $modeText\nWearShape: $shapeText\nData: $_dataText'),
-              );
-            },
-          );
-        },
       ),
     );
   }
