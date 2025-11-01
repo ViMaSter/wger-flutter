@@ -19,6 +19,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:watch_connectivity/watch_connectivity.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/models/exercises/exercise.dart';
 import 'package:wger/theme/theme.dart';
@@ -113,6 +114,15 @@ class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
   void initState() {
     super.initState();
     _endTime = DateTime.now().add(Duration(seconds: widget._seconds));
+
+    final watch = WatchConnectivity();
+    watch.updateApplicationContext({
+      'state': 'timer',
+      'data': {
+        'endTimeISO8601': _endTime.toIso8601String(),
+      },
+    });
+    print('[WATCH CONNECTIVITY] Sent timer end time: ${_endTime.toIso8601String()}');
 
     _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       // ignore: no-empty-block, avoid-empty-setstate
