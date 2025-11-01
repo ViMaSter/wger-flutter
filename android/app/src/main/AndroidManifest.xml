@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Rest alarms on time; user-granted on Android 14+, inexact without it -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-feature android:name="android.hardware.type.watch" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Health Connect permissions for the imported measurement types. Must
          list every type in enabledHealthMetrics: Health Connect cannot grant
