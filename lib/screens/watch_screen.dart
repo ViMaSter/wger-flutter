@@ -142,7 +142,7 @@ class _WatchScreenState extends State<WatchScreen> {
         await Vibration.vibrate(pattern: [0, 75, 25, 75], intensities: [0, 255, 0, 192]);
       }
       if (remainingSeconds == 3 || remainingSeconds == 2 || remainingSeconds == 1) {
-        await Vibration.vibrate(duration: 150);
+        await Vibration.vibrate(pattern: [0, 75, 25, 75, 825, 75, 25, 75, 825, 75, 25, 75, 825], intensities: [0, 255, 0, 192, 0, 255, 0, 192, 0, 255, 0, 192, 0]);
       }
       if (remainingSeconds > 0) {
         setState(() {

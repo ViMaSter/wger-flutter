@@ -68,6 +68,9 @@ import 'package:wger/theme/theme.dart';
 import 'package:wger/widgets/core/about.dart';
 import 'package:wger/widgets/core/log_overview.dart';
 import 'package:wger/widgets/core/settings.dart';
+import 'package:flutter/material.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
 
 import 'helpers/logs.dart';
 import 'providers/auth.dart';
@@ -106,6 +109,11 @@ void main() async {
       final stack = details.stack ?? StackTrace.empty;
       logger.severe('Error caught by FlutterError.onError: ${details.exception}');
 
+      Sentry.captureException(
+        details.exception,
+        stackTrace: details.stack,
+      );
+
       FlutterError.dumpErrorToConsole(details);
 
       // Don't show the full error dialog for network image loading errors.
@@ -141,11 +149,28 @@ void main() async {
   if (deviceInfo is AndroidDeviceInfo &&
       allInfo['model'] != null &&
       (allInfo['model'] as String).toLowerCase().contains('watch') || (allInfo['model'] as String).toLowerCase().contains('wear')) {
-    runApp(const WatchScreen());
+    
+    SentryFlutter.init(
+      (options) => options
+        ..dsn='https://7aadf4813be14e1fb7f296530aec1d3b@errors.by.vincent.mahn.ke/1'
+        ..tracesSampleRate=1.00
+        ..enableAutoSessionTracking=false,
+      appRunner: () => runApp(const WatchScreen())
+    );
     return;
   } 
 
-  runApp(const riverpod.ProviderScope(child: MainApp()));
+  
+
+  SentryFlutter.init(
+    (options) => options
+      ..dsn='https://7aadf4813be14e1fb7f296530aec1d3b@errors.by.vincent.mahn.ke/1'
+      ..tracesSampleRate=1.00
+      ..enableAutoSessionTracking=false,
+    appRunner: () => runApp(const riverpod.ProviderScope(child: MainApp()))
+  );
+
+  
 }
 
 class MainApp extends StatelessWidget {
