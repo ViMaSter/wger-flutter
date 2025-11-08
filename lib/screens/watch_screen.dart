@@ -39,6 +39,8 @@ class _WatchScreenState extends State<WatchScreen> {
   String _exerciseName = '-';
   String _repetitions = '-';
   String _weight = '-';
+  String _currentSetCount = '-';
+  String _totalSetCount = '-';
 
   // register a dictionary of string, function named `contextActions` to handle incoming messages
   final Map<String, Function(Map<String, dynamic>)> contextActions = {};
@@ -48,6 +50,8 @@ class _WatchScreenState extends State<WatchScreen> {
       _exerciseName = context['exerciseName'] as String;
       _weight = context['weight'] as String;
       _repetitions = context['repetitions'] as String;
+      _currentSetCount = context['currentSetCount'] as String;
+      _totalSetCount = context['totalSetCount'] as String;
     });
   }
 
@@ -64,6 +68,45 @@ class _WatchScreenState extends State<WatchScreen> {
     _startCountdown(endTime);
   }
 
+  void reactToUpdate(context) {
+    if (context == null) {
+      _logger.warning('No valid context found');
+      return;
+    }
+
+    _logger.info('[WATCH CONNECTIVITY] Applying current state...');
+    try {
+      _logger.info('Last context to apply; applying for each key in: $context');
+
+      context.forEach((key, value) {
+        final action = contextActions[key];
+        if (action == null) {
+          _logger.warning('No action found for context key: $key');
+          return;
+        }
+
+        try {
+          if (value is! Map) {
+            _logger.warning('Context value for key "$key" is not a Map: $value');
+            return;
+          }
+
+          final data = value.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
+          _logger.info('Applying context data for key "$key": $data');
+          action(data);
+        } catch (e, st) {
+          _logger.severe(
+            'Failed to convert context value for key "$key" to Map<String,dynamic>: $e',
+            e,
+            st,
+          );
+        }
+      });
+    } catch (e, st) {
+      _logger.severe('Failed to get initial watch context: $e', e, st);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,61 +115,15 @@ class _WatchScreenState extends State<WatchScreen> {
 
     (() async {
       final watch = WatchConnectivity();
-      _logger.info('[WATCH CONNECTIVITY] Applying current state...');
-      try {
+      watch.contextStream.listen((context) {
+        _logger.info('Watch connectivity state changed: $context');
+        reactToUpdate(context);
+      });
+
       final contexts = await watch.receivedApplicationContexts;
       _logger.info('Initial watch context: $contexts');
-      for (final context in contexts) {
-        final action = contextActions[context['state']];
-        if (action == null) {
-          _logger.warning('No action found for initial context key: ${context["state"]}');
-          return;
-        }
-
-        try {
-          final raw = context['data'];
-          if (raw is! Map) {
-            _logger.warning('Context "data" is not a Map: $raw');
-            return;
-          }
-
-          final data = raw.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
-          _logger.info('Applying initial context data: $data');
-          action(data);
-        } catch (e, st) {
-          _logger.severe('Failed to convert context "data" to Map<String,dynamic>: $e', e, st);
-        }
-      }
-      _logger.info('[WATCH CONNECTIVITY] Listening for context updates...');
-      watch.contextStream.listen((context) {
-        _logger.info('Parsed watch context: $context');
-        if (!context.containsKey('state')) {
-          _logger.info('No state key in context: $context');
-          return;
-        }
-
-        final action = contextActions[context['state']];
-        if (action == null) {
-          _logger.warning('No action found for context key: ${context["state"]}');
-          return;
-        }
-
-        try {
-          final raw = context['data'];
-          if (raw is! Map) {
-            _logger.warning('Context "data" is not a Map: $raw');
-            return;
-          }
-
-          final data = raw.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
-          action(data);
-        } catch (e, st) {
-          _logger.severe('Failed to convert context "data" to Map<String,dynamic>: $e', e, st);
-        }
-      });
-      } catch (e, st) {
-        _logger.severe('Failed to get initial watch context: $e', e, st);
-      }
+      final context = contexts.isNotEmpty ? contexts.last : null;
+      reactToUpdate(context);
     })();
   }
 
@@ -142,7 +139,10 @@ class _WatchScreenState extends State<WatchScreen> {
         await Vibration.vibrate(pattern: [0, 75, 25, 75], intensities: [0, 255, 0, 192]);
       }
       if (remainingSeconds == 3 || remainingSeconds == 2 || remainingSeconds == 1) {
-        await Vibration.vibrate(pattern: [0, 75, 25, 75, 825, 75, 25, 75, 825, 75, 25, 75, 825], intensities: [0, 255, 0, 192, 0, 255, 0, 192, 0, 255, 0, 192, 0]);
+        await Vibration.vibrate(
+          pattern: [0, 75, 25, 75, 825, 75, 25, 75, 825, 75, 25, 75, 825],
+          intensities: [0, 255, 0, 192, 0, 255, 0, 192, 0, 255, 0, 192, 0],
+        );
       }
       if (remainingSeconds > 0) {
         setState(() {
@@ -182,44 +182,29 @@ class _WatchScreenState extends State<WatchScreen> {
         builder: (BuildContext context) {
           return AmbientMode(
             builder: (context, mode, child) {
+              final finalStr = [];
+
               final weightStr = _weight;
               final hasExercise = _exerciseName != '-';
               final hasTimer = _remainingTimeText != '-';
+              final hasSetInfo = _currentSetCount != '-' && _totalSetCount != '-';
 
-              // Neither exercise nor timer
-              if (!hasExercise && !hasTimer) {
-                return const Center(
-                  child: Text(
-                  'No exercise selected\n\nNo timer set',
-                  textAlign: TextAlign.center,
-                  ),
-                );
+              if(hasSetInfo) {
+                finalStr.add('Set: $_currentSetCount/$_totalSetCount');
+              }
+              
+              if (hasExercise) {
+                finalStr.add('$_exerciseName\n$_repetitions x $weightStr kg');
               }
 
-              // No exercise but timer exists
-              if (!hasExercise && hasTimer) {
-                return Center(
-                  child: Text(
-                  'No exercise selected\n\nTimer: $_remainingTimeText',
-                  textAlign: TextAlign.center,
-                  ),
-                );
-              }
-
-              // Exercise exists but no timer
-              if (hasExercise && !hasTimer) {
-                return Center(
-                  child: Text(
-                  '$_exerciseName\n$_repetitions x $weightStr kg\n\nNo timer set',
-                  textAlign: TextAlign.center,
-                  ),
-                );
+              if (hasTimer) {
+                finalStr.add('Rest Time:\n$_remainingTimeText');
               }
 
               // Both exercise and timer exist
               return Center(
                 child: Text(
-                  '$_exerciseName\n$_repetitions x $weightStr kg\n\nTimer: $_remainingTimeText',
+                  finalStr.join('\n\n'),
                   textAlign: TextAlign.center,
                 ),
               );
