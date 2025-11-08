@@ -145,19 +145,19 @@ class _LogPageState extends ConsumerState<LogPage> {
 
   void _sendWatchContext() async {
     final watch = WatchConnectivity();
-      final receivedContexts = await watch.receivedApplicationContexts;
-      final mergedContext = <String, dynamic>{
-        ...receivedContexts.fold<Map<String, dynamic>>({}, (acc, map) => {...acc, ...map}),
-        'exercise': {
-          'exerciseName': widget._configData.exercise.getTranslation(Localizations.localeOf(context).languageCode).name,
-          'weight': _logFormKey.currentState?._weightController.text,
-          'repetitions': _logFormKey.currentState?._repetitionsController.text,
-          'currentSetCount': (widget._slotData.setConfigs.indexOf(widget._configData) + 1).toString(),
-          'totalSetCount': widget._slotData.setConfigs.length.toString(),
-        },
-      };
-      await watch.updateApplicationContext(mergedContext);
-      print('[WATCH CONNECTIVITY] Sent merged exercise context: $mergedContext');
+    final receivedContexts = await watch.receivedApplicationContexts;
+    final mergedContext = <String, dynamic>{
+      ...receivedContexts.fold<Map<String, dynamic>>({}, (acc, map) => {...acc, ...map}),
+      'exercise': {
+        'exerciseName': widget._configData.exercise.getTranslation(Localizations.localeOf(context).languageCode).name,
+        'weight': _logFormKey.currentState?._weightController.text,
+        'repetitions': _logFormKey.currentState?._repetitionsController.text,
+        'currentSetCount': (widget._slotData.setConfigs.indexOf(widget._configData) + 1).toString(),
+        'totalSetCount': widget._slotData.setConfigs.length.toString(),
+      },
+    };
+    await watch.updateApplicationContext(mergedContext);
+    print('[WATCH CONNECTIVITY] Sent merged exercise context: $mergedContext');
   }
 
   void updateWatch() {
