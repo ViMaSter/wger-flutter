@@ -180,7 +180,7 @@ class _LogPageState extends ConsumerState<LogPage> {
     return Column(
       children: [
         NavigationHeader(
-          log.exercise.getTranslation(Localizations.localeOf(context).languageCode).name,
+            '[${state.slotData.setConfigs.indexOf(state.configData) + 1}/${state.slotData.setConfigs.length}] ${state.exercise.getTranslation(Localizations.localeOf(context).languageCode).name}',
           widget._controller,
         ),
 
