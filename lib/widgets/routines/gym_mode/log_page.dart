@@ -137,6 +137,41 @@ class _LogPageState extends ConsumerState<LogPage> {
   void initState() {
     super.initState();
     focusNode = FocusNode();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      updateWatch();
+    });
+  }
+
+  void _sendWatchContext() async {
+    final watch = WatchConnectivity();
+      final receivedContexts = await watch.receivedApplicationContexts;
+      final mergedContext = <String, dynamic>{
+        ...receivedContexts.fold<Map<String, dynamic>>({}, (acc, map) => {...acc, ...map}),
+        'exercise': {
+          'exerciseName': widget._configData.exercise.getTranslation(Localizations.localeOf(context).languageCode).name,
+          'weight': _logFormKey.currentState?._weightController.text,
+          'repetitions': _logFormKey.currentState?._repetitionsController.text,
+          'currentSetCount': (widget._slotData.setConfigs.indexOf(widget._configData) + 1).toString(),
+          'totalSetCount': widget._slotData.setConfigs.length.toString(),
+        },
+      };
+      await watch.updateApplicationContext(mergedContext);
+      print('[WATCH CONNECTIVITY] Sent merged exercise context: $mergedContext');
+  }
+
+  void updateWatch() {
+    final state = _logFormKey.currentState;
+    if (state == null) return;
+
+    state._repetitionsController
+      ..removeListener(_sendWatchContext)
+      ..addListener(_sendWatchContext);
+    state._weightController
+      ..removeListener(_sendWatchContext)
+      ..addListener(_sendWatchContext);
+
+    _sendWatchContext();
   }
 
   @override
@@ -633,8 +668,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
       if (widget.configData.weight != null) {
         _weightController.text = numberFormat.format(widget.configData.weight);
       }
-
-      updateWatch();
     });
   }
 
@@ -643,22 +676,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
     _repetitionsController.dispose();
     _weightController.dispose();
     super.dispose();
-  }
-
-  void updateWatch() {
-    final watch = WatchConnectivity();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final postFrameData = {
-        'state': 'exercise',
-        'data': {
-          'exerciseName': widget.configData.exercise.getTranslation(Localizations.localeOf(context).languageCode,).name,
-          'weight': _weightController.text,
-          'repetitions': _repetitionsController.text,
-        }
-      };
-      watch.updateApplicationContext(postFrameData);
-      print('[WATCH CONNECTIVITY] Sent exercise context (post-frame): $postFrameData');
-    });
   }
 
   void copyFromPastLog(Log pastLog) {
@@ -672,10 +689,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
       widget._logger.finer('Setting log repetitions to ${_repetitionsController.text}');
 
       _weightController.text = pastLog.weight != null ? numberFormat.format(pastLog.weight) : '';
-      widget._logger.finer('Setting log weight to ${_weightController.text}');
-
-      _log.rir = pastLog.rir;
-      widget._logger.finer('Setting log rir to ${_log.rir}');
       updateWatch();
     });
   }
@@ -705,7 +718,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
-                      updateWatch();
                     },
                   ),
                 ),
@@ -718,7 +730,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
-                      updateWatch();
                     },
                   ),
                 ),
@@ -736,7 +747,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
-                      updateWatch();
                     },
                   ),
                 ),
@@ -762,7 +772,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
                     log: _log,
                     setStateCallback: (fn) {
                       setState(fn);
-                      updateWatch();
                     },
                   ),
                 ),
