@@ -175,6 +175,7 @@ class _GymModeState extends ConsumerState<GymMode> {
             TimerCountdownWidget(
               _controller,
               config.restTime!.toInt(),
+              config.maxRestTime?.toInt(),
               ratioCompleted,
               state.exercisePages,
               _totalPages,

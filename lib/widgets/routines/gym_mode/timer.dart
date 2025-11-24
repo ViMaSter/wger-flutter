@@ -112,12 +112,14 @@ class TimerCountdownWidget extends StatefulWidget {
   final PageController _controller;
   final double _ratioCompleted;
   final int _seconds;
+  final int? _maxSeconds;
   final Map<Exercise, int> _exercisePages;
   final int _totalPages;
 
   const TimerCountdownWidget(
     this._controller,
     this._seconds,
+    this._maxSeconds,
     this._ratioCompleted,
     this._exercisePages,
     this._totalPages,
@@ -178,6 +180,53 @@ class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _changeSeconds(-15),
+                    icon: const Icon(Icons.remove_circle_outline),
+                    label: Text('-15s', style: Theme.of(context).textTheme.labelLarge),
+                  ),
+                  const SizedBox(width: 24),
+                  OutlinedButton.icon(
+                    onPressed: () => _changeSeconds(15),
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: Text('+15s', style: Theme.of(context).textTheme.labelLarge),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget._seconds > 0)
+                    OutlinedButton(
+                      onPressed: () => _resetTo(widget._seconds),
+                      child: Text(
+                        'Reset to ${widget._seconds}s',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  if (widget._seconds > 0 && widget._maxSeconds != null)
+                    const SizedBox(width: 16),
+                  if (widget._maxSeconds != null)
+                    OutlinedButton(
+                      onPressed: () => _resetTo(widget._maxSeconds!),
+                      child: Text(
+                        'Reset to ${widget._maxSeconds!.toString()}s',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
         NavigationFooter(widget._controller, widget._ratioCompleted),
       ],
     );
@@ -202,5 +251,54 @@ class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
       },
     });
     print('[WATCH CONNECTIVITY] Sent timer end time: ${_endTime.toIso8601String()}');
+  }
+
+  void _changeSeconds(int delta) {
+    final service = GymModeRestTimerService.instance;
+    // If already expired, ignore increases until restarted via navigation.
+    if (!service.isActive || service.isExpired) {
+      return; // Timer needs restart via normal flow.
+    }
+
+    final now = DateTime.now();
+    var newEnd = _endTime.add(Duration(seconds: delta));
+
+    // Subtraction can push before now. If so, end immediately.
+    if (newEnd.isBefore(now)) {
+      // Set remaining to zero and end timer.
+      _endTime = now;
+      service.reset();
+      setState(() {});
+      return;
+    }
+
+    _endTime = newEnd;
+    service.start(_endTime); // Persist new end time.
+
+    // Update watch context with new end time.
+    final watch = WatchConnectivity();
+    watch.updateApplicationContext({
+      'state': 'timer',
+      'data': {
+        'endTimeISO8601': _endTime.toIso8601String(),
+      },
+    });
+    setState(() {});
+  }
+
+  void _resetTo(int seconds) {
+    final service = GymModeRestTimerService.instance;
+
+    _endTime = DateTime.now().add(Duration(seconds: seconds));
+    service.start(_endTime);
+
+    final watch = WatchConnectivity();
+    watch.updateApplicationContext({
+      'state': 'timer',
+      'data': {
+        'endTimeISO8601': _endTime.toIso8601String(),
+      },
+    });
+    setState(() {});
   }
 }
