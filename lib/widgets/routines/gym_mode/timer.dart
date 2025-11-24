@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:watch_connectivity/watch_connectivity.dart';
+import 'package:vibration/vibration.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/models/exercises/exercise.dart';
 import 'package:wger/theme/theme.dart';
@@ -132,6 +133,7 @@ class TimerCountdownWidget extends StatefulWidget {
 class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
   late DateTime _endTime;
   late Timer _uiTimer;
+  bool _notifiedExpired = false;
 
   @override
   void initState() {
@@ -157,11 +159,8 @@ class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
     final displayTime = DateTime(2000, 1, 1, 0, 0, 0).add(Duration(seconds: remainingSeconds));
 
     // If expired, allow a subsequent re-entry to restart by clearing service.
-    if (remainingSeconds == 0) {
-      final service = GymModeRestTimerService.instance;
-      if (service.isExpired) {
-        service.reset();
-      }
+    if (remainingSeconds == 0 && !_notifiedExpired) {
+      _handleExpiry();
     }
 
     return Column(
@@ -299,6 +298,30 @@ class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
         'endTimeISO8601': _endTime.toIso8601String(),
       },
     });
+    setState(() {});
+  }
+
+  Future<void> _handleExpiry() async {
+    _notifiedExpired = true;
+    final service = GymModeRestTimerService.instance;
+    if (service.isExpired) {
+      service.reset();
+    }
+
+    // Trigger vibration feedback (fall back silently if unavailable)
+    try {
+      if (await Vibration.hasVibrator()) {
+        // Short pattern: vibrate, pause, vibrate longer
+        if (await Vibration.hasCustomVibrationsSupport()) {
+          await Vibration.vibrate(pattern: [0, 300, 150, 600]);
+        } else {
+          await Vibration.vibrate(duration: 700);
+        }
+      }
+    } catch (_) {
+      // ignore any vibration errors
+    }
+    // (Optional) Could schedule a local notification for background expiry here.
     setState(() {});
   }
 }
