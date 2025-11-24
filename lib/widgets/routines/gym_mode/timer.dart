@@ -111,7 +111,7 @@ class TimerCountdownWidget extends ConsumerStatefulWidget {
 
   const TimerCountdownWidget(
     this._controller,
-    this._seconds,
+    this._seconds
   );
 
   @override
@@ -211,5 +211,54 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
       },
     });
     print('[WATCH CONNECTIVITY] Sent timer end time: ${_endTime.toIso8601String()}');
+  }
+
+  void _changeSeconds(int delta) {
+    final service = GymModeRestTimerService.instance;
+    // If already expired, ignore increases until restarted via navigation.
+    if (!service.isActive || service.isExpired) {
+      return; // Timer needs restart via normal flow.
+    }
+
+    final now = DateTime.now();
+    var newEnd = _endTime.add(Duration(seconds: delta));
+
+    // Subtraction can push before now. If so, end immediately.
+    if (newEnd.isBefore(now)) {
+      // Set remaining to zero and end timer.
+      _endTime = now;
+      service.reset();
+      setState(() {});
+      return;
+    }
+
+    _endTime = newEnd;
+    service.start(_endTime); // Persist new end time.
+
+    // Update watch context with new end time.
+    final watch = WatchConnectivity();
+    watch.updateApplicationContext({
+      'state': 'timer',
+      'data': {
+        'endTimeISO8601': _endTime.toIso8601String(),
+      },
+    });
+    setState(() {});
+  }
+
+  void _resetTo(int seconds) {
+    final service = GymModeRestTimerService.instance;
+
+    _endTime = DateTime.now().add(Duration(seconds: seconds));
+    service.start(_endTime);
+
+    final watch = WatchConnectivity();
+    watch.updateApplicationContext({
+      'state': 'timer',
+      'data': {
+        'endTimeISO8601': _endTime.toIso8601String(),
+      },
+    });
+    setState(() {});
   }
 }
