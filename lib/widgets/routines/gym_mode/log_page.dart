@@ -144,8 +144,15 @@ class _LogPageState extends ConsumerState<LogPage> {
   }
 
   void _sendWatchContext() async {
+    if (!mounted) {
+      return;
+    }
     final watch = WatchConnectivity();
     final receivedContexts = await watch.receivedApplicationContexts;
+
+  if (!mounted) {
+    return;
+  }
     final mergedContext = <String, dynamic>{
       ...receivedContexts.fold<Map<String, dynamic>>({}, (acc, map) => {...acc, ...map}),
       'exercise': {
@@ -156,13 +163,19 @@ class _LogPageState extends ConsumerState<LogPage> {
         'totalSetCount': widget._slotData.setConfigs.length.toString(),
       },
     };
+
     await watch.updateApplicationContext(mergedContext);
+    if (!mounted) {
+      return;
+    }
     print('[WATCH CONNECTIVITY] Sent merged exercise context: $mergedContext');
   }
 
   void updateWatch() {
     final state = _logFormKey.currentState;
-    if (state == null) return;
+    if (state == null) {
+      return;
+    }
 
     state._repetitionsController
       ..removeListener(_sendWatchContext)
