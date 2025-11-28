@@ -200,27 +200,27 @@ class _TimerCountdownWidgetState extends State<TimerCountdownWidget> {
                 ],
               ),
               const SizedBox(height: 8),
-              Row(
+                Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (widget._seconds > 0)
-                    OutlinedButton(
-                      onPressed: () => _resetTo(widget._seconds),
-                      child: Text(
-                        'Reset to ${widget._seconds}s',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
+                  OutlinedButton(
+                    onPressed: () => _resetTo(widget._seconds),
+                    child: Text(
+                    'Reset to ${DateFormat('m:ss').format(DateTime(2000, 1, 1, 0, 0, widget._seconds))}',
+                    style: Theme.of(context).textTheme.labelLarge,
                     ),
+                  ),
                   if (widget._seconds > 0 && widget._maxSeconds != null)
-                    const SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   if (widget._maxSeconds != null)
-                    OutlinedButton(
-                      onPressed: () => _resetTo(widget._maxSeconds!),
-                      child: Text(
-                        'Reset to ${widget._maxSeconds!.toString()}s',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
+                  OutlinedButton(
+                    onPressed: () => _resetTo(widget._maxSeconds!),
+                    child: Text(
+                    'Reset to ${DateFormat('m:ss').format(DateTime(2000, 1, 1, 0, 0, widget._maxSeconds!))}',
+                    style: Theme.of(context).textTheme.labelLarge,
                     ),
+                  ),
                 ],
               ),
             ],
