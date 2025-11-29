@@ -152,7 +152,7 @@ void main() async {
     
     SentryFlutter.init(
       (options) => options
-        ..dsn='https://7aadf4813be14e1fb7f296530aec1d3b@errors.by.vincent.mahn.ke/1'
+        ..dsn='https://61f3864700bc4e87aeef8c41e8d93b00@errors.by.vincent.mahn.ke/1'
         ..tracesSampleRate=1.00
         ..enableAutoSessionTracking=false,
       appRunner: () => runApp(const WatchScreen())
@@ -164,7 +164,7 @@ void main() async {
 
   SentryFlutter.init(
     (options) => options
-      ..dsn='https://7aadf4813be14e1fb7f296530aec1d3b@errors.by.vincent.mahn.ke/1'
+      ..dsn='https://61f3864700bc4e87aeef8c41e8d93b00@errors.by.vincent.mahn.ke/1'
       ..tracesSampleRate=1.00
       ..enableAutoSessionTracking=false,
     appRunner: () => runApp(const riverpod.ProviderScope(child: MainApp()))
