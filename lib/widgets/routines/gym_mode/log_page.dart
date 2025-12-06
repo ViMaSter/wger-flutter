@@ -156,11 +156,26 @@ class _LogPageState extends ConsumerState<LogPage> {
     final mergedContext = <String, dynamic>{
       ...receivedContexts.fold<Map<String, dynamic>>({}, (acc, map) => {...acc, ...map}),
       'exercise': {
-        'exerciseName': widget._configData.exercise.getTranslation(Localizations.localeOf(context).languageCode).name,
+        'exerciseName': _logFormKey.currentState?._log.exercise.getTranslation(
+          Localizations.localeOf(context).languageCode,
+        ).name,
         'weight': _logFormKey.currentState?._weightController.text,
         'repetitions': _logFormKey.currentState?._repetitionsController.text,
-        'currentSetCount': (widget._slotData.setConfigs.indexOf(widget._configData) + 1).toString(),
-        'totalSetCount': widget._slotData.setConfigs.length.toString(),
+        'currentSetCount': _logFormKey.currentState != null
+            ? (ref
+                    .read(gymStateProvider)
+                    .getSlotEntryPageByIndex()!
+                    .setIndex +
+                1)
+            : null,
+        'totalSetCount': _logFormKey.currentState != null
+            ? ref
+                .read(gymStateProvider)
+                .getPageByIndex()!
+                .slotPages
+                .where((e) => e.type == SlotPageType.log)
+                .length
+            : null,
       },
     };
 
@@ -228,7 +243,7 @@ class _LogPageState extends ConsumerState<LogPage> {
     return Column(
       children: [
         NavigationHeader(
-            '[${state.slotData.setConfigs.indexOf(state.configData) + 1}/${state.slotData.setConfigs.length}] ${state.exercise.getTranslation(Localizations.localeOf(context).languageCode).name}',
+          log.exercise.getTranslation(Localizations.localeOf(context).languageCode).name,
           widget._controller,
         ),
 
@@ -292,6 +307,7 @@ class _LogPageState extends ConsumerState<LogPage> {
                   pastLogs: state.routine.filterLogsByExercise(log.exercise.id!),
                   onCopy: (pastLog) {
                     _logFormKey.currentState?.copyFromPastLog(pastLog);
+                    updateWatch();
                   },
                   setStateCallback: (fn) {
                     setState(fn);
@@ -702,7 +718,6 @@ class _LogFormWidgetState extends ConsumerState<LogFormWidget> {
       widget._logger.finer('Setting log repetitions to ${_repetitionsController.text}');
 
       _weightController.text = pastLog.weight != null ? numberFormat.format(pastLog.weight) : '';
-      updateWatch();
     });
   }
 

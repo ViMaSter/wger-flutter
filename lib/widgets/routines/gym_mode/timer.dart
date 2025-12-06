@@ -183,6 +183,49 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
                 style: Theme.of(context).textTheme.displayLarge!.copyWith(color: wgerPrimaryColor),
               ),
               const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _changeSeconds(-15),
+                    icon: const Icon(Icons.remove),
+                    label: const Text('-15s'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => _changeSeconds(15),
+                    icon: const Icon(Icons.add),
+                    label: const Text('+15s'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Builder(builder: (context) {
+                final gymState = ref.watch(gymStateProvider);
+                final page = gymState.getSlotEntryPageByIndex();
+                final minRest = page?.setConfigData?.restTime?.toInt();
+                final maxRest = page?.setConfigData?.maxRestTime?.toInt();
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: (minRest != null)
+                          ? () => _resetTo(minRest)
+                          : null,
+                      icon: const Icon(Icons.timer),
+                      label: Text(minRest != null ? 'Reset to ${minRest}s' : 'Reset to min'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: (maxRest != null)
+                          ? () => _resetTo(maxRest)
+                          : null,
+                      icon: const Icon(Icons.timer_outlined),
+                      label: Text(maxRest != null ? 'Reset to ${maxRest}s' : 'Reset to max'),
+                    ),
+                  ],
+                );
+              }),
             ],
           ),
         ),
@@ -247,10 +290,8 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
 
   void _resetTo(int seconds) {
     final service = GymModeRestTimerService.instance;
-
     _endTime = DateTime.now().add(Duration(seconds: seconds));
     service.start(_endTime);
-
     final watch = WatchConnectivity();
     watch.updateApplicationContext({
       'state': 'timer',
