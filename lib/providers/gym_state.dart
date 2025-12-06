@@ -106,11 +106,15 @@ class SlotPageEntry {
   /// The associated SetConfigData
   final SetConfigData? setConfigData;
 
+  /// Optional comment for the slot
+  final String? comment;
+
   SlotPageEntry({
     required this.type,
     required this.pageIndex,
     required this.setIndex,
     this.setConfigData,
+    this.comment,
     this.logDone = false,
     String? uuid,
   }) : uuid = uuid ?? uuidV4();
@@ -122,6 +126,7 @@ class SlotPageEntry {
     int? setIndex,
     int? pageIndex,
     SetConfigData? setConfigData,
+    String? comment,
     bool? logDone,
   }) {
     return SlotPageEntry(
@@ -130,6 +135,7 @@ class SlotPageEntry {
       setIndex: setIndex ?? this.setIndex,
       pageIndex: pageIndex ?? this.pageIndex,
       setConfigData: setConfigData ?? this.setConfigData,
+      comment: comment ?? this.comment,
       logDone: logDone ?? this.logDone,
     );
   }
@@ -141,6 +147,7 @@ class SlotPageEntry {
       'type: $type, '
       'setIndex: $setIndex, '
       'pageIndex: $pageIndex, '
+      'comment: $comment, '
       'logDone: $logDone'
       ')';
 }
@@ -416,6 +423,7 @@ class GymStateNotifier extends _$GymStateNotifier {
               setIndex: setIndex,
               pageIndex: pageIndex,
               setConfigData: setConfig,
+              comment: slotData.comment,
             ),
           );
           pageIndex++;
@@ -430,6 +438,7 @@ class GymStateNotifier extends _$GymStateNotifier {
             setIndex: setIndex,
             pageIndex: pageIndex,
             setConfigData: config,
+            comment: slotData.comment,
           ),
         );
         pageIndex++;
@@ -443,6 +452,7 @@ class GymStateNotifier extends _$GymStateNotifier {
               setIndex: setIndex,
               pageIndex: pageIndex,
               setConfigData: config,
+              comment: slotData.comment,
             ),
           );
           pageIndex++;
@@ -673,6 +683,7 @@ class GymStateNotifier extends _$GymStateNotifier {
                 exercise: newExercise,
                 slotEntryId: setConfigData.slotEntryId,
               ),
+              comment: setConfigData.comment,
             ),
           );
         }

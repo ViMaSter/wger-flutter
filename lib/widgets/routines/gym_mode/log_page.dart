@@ -287,11 +287,11 @@ class _LogPageState extends ConsumerState<LogPage> {
           ),
         ),
         if (log.exercise.showPlateCalculator) const LogsPlatesWidget(),
-        if (slotEntryPage.setConfigData!.comment.isNotEmpty)
+        if (slotEntryPage.comment?.isNotEmpty == true)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
             child: LinkifyText(
-              slotEntryPage.setConfigData!.comment,
+              slotEntryPage.comment!,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
               linkStyle: Theme.of(context)
