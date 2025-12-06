@@ -24,6 +24,7 @@ import 'package:wear_plus/wear_plus.dart';
 import 'package:wger/main.dart';
 import 'package:logging/logging.dart';
 import 'package:vibration/vibration.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 final Logger _logger = Logger('watch_screen');
 
@@ -109,6 +110,7 @@ class _WatchScreenState extends State<WatchScreen> {
 
   @override
   void initState() {
+    WakelockPlus.enable();
     super.initState();
     contextActions['exercise'] = onWorkoutChange;
     contextActions['timer'] = onTimerChange;
