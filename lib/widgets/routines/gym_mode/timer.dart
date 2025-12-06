@@ -307,7 +307,7 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
       },
     };
 
-    await watch.updateApplicationContext(mergedContext);
+    await watch.sendMessage(mergedContext);
     // Helpful log when developing/debugging
     print('[WATCH CONNECTIVITY] Merged timer context: $mergedContext');
   }

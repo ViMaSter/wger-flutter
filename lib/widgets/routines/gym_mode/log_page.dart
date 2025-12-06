@@ -179,7 +179,7 @@ class _LogPageState extends ConsumerState<LogPage> {
       },
     };
 
-    await watch.updateApplicationContext(mergedContext);
+    await watch.sendMessage(mergedContext);
     if (!mounted) {
       return;
     }

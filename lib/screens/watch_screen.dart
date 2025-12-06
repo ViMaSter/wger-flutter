@@ -115,15 +115,10 @@ class _WatchScreenState extends State<WatchScreen> {
 
     (() async {
       final watch = WatchConnectivity();
-      watch.contextStream.listen((context) {
-        _logger.info('Watch connectivity state changed: $context');
-        reactToUpdate(context);
+      watch.messageStream.listen((message) {
+        _logger.info('Watch message received: $message');
+        reactToUpdate(message);
       });
-
-      final contexts = await watch.receivedApplicationContexts;
-      _logger.info('Initial watch context: $contexts');
-      final context = contexts.isNotEmpty ? contexts.last : null;
-      reactToUpdate(context);
     })();
   }
 
