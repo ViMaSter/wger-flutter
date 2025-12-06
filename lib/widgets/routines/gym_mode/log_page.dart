@@ -150,36 +150,37 @@ class _LogPageState extends ConsumerState<LogPage> {
     final watch = WatchConnectivity();
     final receivedContexts = await watch.receivedApplicationContexts;
 
-  if (!mounted) {
-    return;
-  }
+    if (!mounted) {
+      return;
+    }
     final mergedContext = <String, dynamic>{
       ...receivedContexts.fold<Map<String, dynamic>>({}, (acc, map) => {...acc, ...map}),
       'exercise': {
-        'exerciseName': _logFormKey.currentState?._log.exercise.getTranslation(
-          Localizations.localeOf(context).languageCode,
-        ).name,
-        'weight': _logFormKey.currentState?._weightController.text,
-        'repetitions': _logFormKey.currentState?._repetitionsController.text,
-        'currentSetCount': _logFormKey.currentState != null
-            ? (ref
-                    .read(gymStateProvider)
-                    .getSlotEntryPageByIndex()!
-                    .setIndex +
-                1)
-            : null,
-        'totalSetCount': _logFormKey.currentState != null
-            ? ref
-                .read(gymStateProvider)
-                .getPageByIndex()!
-                .slotPages
-                .where((e) => e.type == SlotPageType.log)
-                .length
-            : null,
+      'exerciseName': _logFormKey.currentState?._log.exercise.getTranslation(
+        Localizations.localeOf(context).languageCode,
+      ).name,
+      'weight': _logFormKey.currentState?._weightController.text,
+      'repetitions': _logFormKey.currentState?._repetitionsController.text,
+      'currentSetCount': _logFormKey.currentState != null
+        ? (ref
+          .read(gymStateProvider)
+          .getSlotEntryPageByIndex()!
+          .setIndex +
+        1)
+        : null,
+      'totalSetCount': _logFormKey.currentState != null
+        ? ref
+          .read(gymStateProvider)
+          .getPageByIndex()!
+          .slotPages
+          .where((e) => e.type == SlotPageType.log)
+          .length
+        : null,
       },
     };
 
     await watch.sendMessage(mergedContext);
+    await watch.updateApplicationContext(mergedContext);
     if (!mounted) {
       return;
     }
