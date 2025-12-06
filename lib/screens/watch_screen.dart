@@ -47,11 +47,11 @@ class _WatchScreenState extends State<WatchScreen> {
 
   void onWorkoutChange(Map<String, dynamic> context) {
     setState(() {
-      _exerciseName = context['exerciseName'] as String;
-      _weight = context['weight'] as String;
-      _repetitions = context['repetitions'] as String;
-      _currentSetCount = context['currentSetCount'] as String;
-      _totalSetCount = context['totalSetCount'] as String;
+      _exerciseName = (context['exerciseName']?.toString() ?? '-');
+      _weight = (context['weight']?.toString() ?? '-');
+      _repetitions = (context['repetitions']?.toString() ?? '-');
+      _currentSetCount = (context['currentSetCount']?.toString() ?? '-');
+      _totalSetCount = (context['totalSetCount']?.toString() ?? '-');
     });
   }
 
@@ -204,7 +204,7 @@ class _WatchScreenState extends State<WatchScreen> {
               // Both exercise and timer exist
               return Center(
                 child: Text(
-                  finalStr.join('\n\n'),
+                  finalStr.isNotEmpty ? finalStr.join('\n\n') : 'No data (yet)',
                   textAlign: TextAlign.center,
                 ),
               );

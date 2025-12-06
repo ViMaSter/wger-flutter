@@ -234,28 +234,22 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
     );
   }
 
-  void updateTimer() {
+  Future<void> updateTimer() async {
     final service = GymModeRestTimerService.instance;
     // Reuse running timer if still active and not expired; otherwise start new.
     if (service.isActive && !service.isExpired) {
       _endTime = service.endTime;
+      // Also refresh watch context with merged timer data
+      await _updateWatchContext();
       return;
     }
 
     _endTime = DateTime.now().add(Duration(seconds: widget._seconds));
     service.start(_endTime);
-
-    final watch = WatchConnectivity();
-    watch.updateApplicationContext({
-      'state': 'timer',
-      'data': {
-        'endTimeISO8601': _endTime.toIso8601String(),
-      },
-    });
-    print('[WATCH CONNECTIVITY] Sent timer end time: ${_endTime.toIso8601String()}');
+    await _updateWatchContext();
   }
 
-  void _changeSeconds(int delta) {
+  Future<void> _changeSeconds(int delta) async {
     final service = GymModeRestTimerService.instance;
     // If already expired, ignore increases until restarted via navigation.
     if (!service.isActive || service.isExpired) {
@@ -277,29 +271,45 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
     _endTime = newEnd;
     service.start(_endTime); // Persist new end time.
 
-    // Update watch context with new end time.
-    final watch = WatchConnectivity();
-    watch.updateApplicationContext({
-      'state': 'timer',
-      'data': {
-        'endTimeISO8601': _endTime.toIso8601String(),
-      },
-    });
+    // Update watch context with merged timer data.
+    await _updateWatchContext();
     setState(() {});
   }
 
-  void _resetTo(int seconds) {
+  Future<void> _resetTo(int seconds) async {
     final service = GymModeRestTimerService.instance;
     _endTime = DateTime.now().add(Duration(seconds: seconds));
     service.start(_endTime);
+    await _updateWatchContext();
+    setState(() {});
+  }
+
+  /// Merges any existing watch contexts with current timer data, similar to the
+  /// provided example, but focused on timer information.
+  Future<void> _updateWatchContext() async {
     final watch = WatchConnectivity();
-    watch.updateApplicationContext({
-      'state': 'timer',
-      'data': {
+    Map<String, dynamic> existingContext = {};
+    try {
+      // Attempt to read existing context if the API provides it.
+      final ctx = await watch.applicationContext;
+      existingContext = Map<String, dynamic>.from(ctx);
+    } catch (_) {
+      // Ignore if not available on the current platform/API version.
+    }
+
+    final remaining = _endTime.difference(DateTime.now());
+    final remainingSeconds = remaining.inSeconds <= 0 ? 0 : remaining.inSeconds;
+
+    final mergedContext = <String, dynamic>{
+      ...existingContext,
+      'timer': {
         'endTimeISO8601': _endTime.toIso8601String(),
       },
-    });
-    setState(() {});
+    };
+
+    await watch.updateApplicationContext(mergedContext);
+    // Helpful log when developing/debugging
+    print('[WATCH CONNECTIVITY] Merged timer context: $mergedContext');
   }
 
   Future<void> _handleExpiry() async {
