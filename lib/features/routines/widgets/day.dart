@@ -76,25 +76,28 @@ class RoutineDayWidget extends StatelessWidget {
   Widget getSlotDataRow(SlotData slotData, BuildContext context) {
     return Column(
       children: [
-        if (slotData.comment.isNotEmpty) MutedText(slotData.comment),
-
         // If there's a single exercise with different sets, group them all into
         // the one exercise and don't show separate rows for each one.
         ...slotData.setConfigs
-            .fold<Map<Exercise, List<String>>>({}, (acc, entry) {
-              acc.putIfAbsent(entry.exercise, () => []).add(entry.textReprWithType);
+            .fold<Map<String, List<Exercise>>>({}, (acc, entry) {
+              acc.putIfAbsent(entry.textReprWithType, () => []).add(entry.exercise);
               return acc;
             })
             .entries
             .map((entry) {
-              return SetConfigDataWidget(
-                exercise: entry.key,
-                textRepetitionsWidget: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: entry.value.map((text) => Text(text)).toList(),
-                ),
+              return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: entry.value.map((exercise) {
+            return SetConfigDataWidget(
+              exercise: exercise,
+              textRepetitionsWidget: Text(entry.key),
+            );
+          }).toList(),
               );
             }),
+
+        if (slotData.comment.isNotEmpty) MutedText(slotData.comment),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -150,21 +153,23 @@ class DayHeader extends StatelessWidget {
       tileColor: Theme.of(context).focusColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       title: Text(
-        _dayData.day!.nameWithType,
-        style: Theme.of(context).textTheme.headlineSmall,
-        overflow: TextOverflow.ellipsis,
+      _dayData.day!.nameWithType,
+      style: Theme.of(context).textTheme.headlineSmall,
+      overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(_dayData.day!.description),
+      subtitle: _dayData.day!.description.isNotEmpty
+        ? Text(_dayData.day!.description)
+        : null,
       leading: _viewMode ? null : const Icon(Icons.play_arrow),
       trailing: _dayData.date.isSameDayAs(DateTime.now()) ? const Icon(Icons.today) : null,
       minLeadingWidth: 8,
       onTap: () {
-        if (!_viewMode) {
-          Navigator.of(context).pushNamed(
-            GymModeScreen.routeName,
-            arguments: GymModeArguments(_routineId, _dayData.day!.id!, _dayData.iteration),
-          );
-        }
+      if (!_viewMode) {
+        Navigator.of(context).pushNamed(
+        GymModeScreen.routeName,
+        arguments: GymModeArguments(_routineId, _dayData.day!.id!, _dayData.iteration),
+        );
+      }
       },
     );
   }
