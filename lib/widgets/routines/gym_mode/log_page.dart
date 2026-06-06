@@ -17,9 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/models/workouts/log.dart';
 import 'package:wger/models/workouts/slot_entry.dart';
@@ -122,10 +124,6 @@ class LogPage extends ConsumerWidget {
               slotEntryPage.comment!,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
-              linkStyle: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(decoration: TextDecoration.underline, color: Theme.of(context).colorScheme.primary),
             ),
           ),
         const SizedBox(height: 10),
@@ -154,6 +152,82 @@ class LogPage extends ConsumerWidget {
         ),
         NavigationFooter(_controller),
       ],
+    );
+  }
+}
+
+/// A small, local linkify widget that underlines links and makes them tappable.
+/// This avoids adding an external dependency. It recognizes http(s) URLs.
+class LinkifyText extends StatelessWidget {
+  final String text;
+  final TextAlign? textAlign;
+  final TextStyle? style;
+  final TextStyle? linkStyle;
+
+  const LinkifyText(
+    this.text, {
+    super.key,
+    this.textAlign,
+    this.style,
+    this.linkStyle,
+  });
+
+  static final _urlRegExp = RegExp(r"(https?:\/\/[^\s]+)", caseSensitive: false);
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = _urlRegExp.allMatches(text).toList();
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        textAlign: textAlign,
+        style: style,
+      );
+    }
+
+    final spans = <TextSpan>[];
+    var lastEnd = 0;
+
+    for (final m in matches) {
+      if (m.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, m.start), style: style));
+      }
+
+      final url = text.substring(m.start, m.end);
+      spans.add(TextSpan(
+        text: url,
+        style: linkStyle ?? style?.copyWith(decoration: TextDecoration.underline),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () async {
+            final uri = Uri.tryParse(url);
+            if (uri != null) {
+              try {
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not open $url.')),
+                  );
+                }
+              } catch (_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not open $url.')),
+                );
+              }
+            }
+          },
+      ));
+
+      lastEnd = m.end;
+    }
+
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd), style: style));
+    }
+
+    return RichText(
+      textAlign: textAlign ?? TextAlign.start,
+      text: TextSpan(children: spans, style: style),
     );
   }
 }
