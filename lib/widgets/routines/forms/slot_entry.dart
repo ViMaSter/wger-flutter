@@ -1,13 +1,13 @@
 /*
  * This file is part of wger Workout Manager <https://github.com/wger-project>.
- * Copyright (C) 2020, 2021 wger Team
+ * Copyright (c) 2020 - 2026 wger Team
  *
  * wger Workout Manager is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * wger Workout Manager is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:wger/exceptions/http_exception.dart';
+import 'package:wger/core/exceptions/http_exception.dart';
 import 'package:wger/helpers/consts.dart';
 import 'package:wger/helpers/errors.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
@@ -29,9 +29,9 @@ import 'package:wger/models/workouts/slot_entry.dart';
 import 'package:wger/providers/routines.dart';
 import 'package:wger/widgets/core/progress_indicator.dart';
 import 'package:wger/widgets/exercises/autocompleter.dart';
-import 'package:wger/widgets/routines/forms/reps_unit.dart';
+import 'package:wger/widgets/routines/forms/repetitions.dart';
 import 'package:wger/widgets/routines/forms/rir.dart';
-import 'package:wger/widgets/routines/forms/weight_unit.dart';
+import 'package:wger/widgets/routines/forms/weight.dart';
 import 'package:wger/widgets/routines/slot.dart';
 
 class SlotEntryForm extends StatefulWidget {
@@ -67,18 +67,33 @@ class _SlotEntryFormState extends State<SlotEntryForm> {
 
   var _edit = false;
 
+  bool _controllersInitialized = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.entry.nrOfSetsConfigs.isNotEmpty) {
       setsSliderValue = widget.entry.nrOfSetsConfigs.first.value.toDouble();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_controllersInitialized) {
+      return;
+    }
+    _controllersInitialized = true;
+
+    // Weights can be fractional, so they are rendered with the active locale's
+    // decimal separator to round-trip through numberFormat when the form is saved.
+    final numberFormat = NumberFormat.decimalPattern(Localizations.localeOf(context).toString());
 
     if (widget.entry.weightConfigs.isNotEmpty) {
-      weightController.text = widget.entry.weightConfigs.first.value.toString();
+      weightController.text = numberFormat.format(widget.entry.weightConfigs.first.value);
     }
     if (widget.entry.maxWeightConfigs.isNotEmpty) {
-      maxWeightController.text = widget.entry.maxWeightConfigs.first.value.toString();
+      maxWeightController.text = numberFormat.format(widget.entry.maxWeightConfigs.first.value);
     }
 
     if (widget.entry.repetitionsConfigs.isNotEmpty) {
@@ -98,7 +113,8 @@ class _SlotEntryFormState extends State<SlotEntryForm> {
     }
 
     if (widget.entry.rirConfigs.isNotEmpty) {
-      rirController.text = widget.entry.rirConfigs.first.value.round().toString();
+      // RiR uses 0.5 steps, so the fractional part must be kept
+      rirController.text = widget.entry.rirConfigs.first.value.toString();
     }
   }
 
@@ -216,9 +232,10 @@ class _SlotEntryFormState extends State<SlotEntryForm> {
             ),
           if (!widget.simpleMode)
             WeightUnitInputWidget(
-              widget.entry.weightUnitId,
+              widget.entry.weightUnitObj,
               onChanged: (value) {
-                widget.entry.weightUnitId = value;
+                widget.entry.weightUnitObj = null;
+                widget.entry.weightUnitId = null;
               },
             ),
           Row(
@@ -257,9 +274,10 @@ class _SlotEntryFormState extends State<SlotEntryForm> {
           ),
           if (!widget.simpleMode)
             RepetitionUnitInputWidget(
-              widget.entry.repetitionUnitId,
+              widget.entry.repetitionUnitObj,
               onChanged: (value) {
-                widget.entry.repetitionUnitId = value;
+                widget.entry.repetitionUnitObj = null;
+                widget.entry.repetitionUnitId = null;
               },
             ),
           Row(
@@ -387,7 +405,8 @@ class _SlotEntryFormState extends State<SlotEntryForm> {
                         ),
                         provider.handleConfig(
                           widget.entry,
-                          numberFormat.tryParse(rirController.text),
+                          // RiR is slider-driven and held as an invariant string
+                          num.tryParse(rirController.text),
                           ConfigType.rir,
                         ),
                       ]);

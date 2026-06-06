@@ -1,6 +1,6 @@
 /*
  * This file is part of wger Workout Manager <https://github.com/wger-project>.
- * Copyright (C) 2020, 2021 wger Team
+ * Copyright (c)  2026 wger Team
  *
  * wger Workout Manager is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -22,6 +22,19 @@ import 'package:wger/models/nutrition/ingredient_image_thumbnails.dart';
 import 'package:wger/models/nutrition/nutritional_values.dart';
 
 part 'ingredient.g.dart';
+
+enum NutriScore {
+  @JsonValue('a')
+  a,
+  @JsonValue('b')
+  b,
+  @JsonValue('c')
+  c,
+  @JsonValue('d')
+  d,
+  @JsonValue('e')
+  e,
+}
 
 @JsonSerializable()
 class Ingredient {
@@ -53,6 +66,10 @@ class Ingredient {
   /// Name of the product
   @JsonKey(required: true)
   final String name;
+
+  /// Brand of the product
+  @JsonKey(name: 'brand')
+  final String? brand;
 
   @JsonKey(required: true, name: 'created')
   final DateTime created;
@@ -89,6 +106,15 @@ class Ingredient {
   @JsonKey(required: true, fromJson: stringToNum, toJson: numToString)
   final num sodium;
 
+  @JsonKey(name: 'is_vegan')
+  final bool? isVegan;
+
+  @JsonKey(name: 'is_vegetarian')
+  final bool? isVegetarian;
+
+  @JsonKey(name: 'nutriscore')
+  final NutriScore? nutriscore;
+
   IngredientImage? image;
 
   IngredientImageThumbnails? thumbnails;
@@ -101,6 +127,7 @@ class Ingredient {
     required this.id,
     required this.code,
     required this.name,
+    this.brand,
     required this.created,
     required this.energy,
     required this.carbohydrates,
@@ -110,6 +137,9 @@ class Ingredient {
     required this.fatSaturated,
     required this.fiber,
     required this.sodium,
+    this.isVegan,
+    this.isVegetarian,
+    this.nutriscore,
     this.image,
     this.thumbnails,
   });

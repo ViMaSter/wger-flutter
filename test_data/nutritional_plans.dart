@@ -32,6 +32,7 @@ final ingredient1 = Ingredient(
   id: 1,
   code: '123456787',
   name: 'Water',
+  brand: null,
   created: DateTime(2021, 5, 1),
   energy: 500,
   carbohydrates: 10,
@@ -41,6 +42,9 @@ final ingredient1 = Ingredient(
   fatSaturated: 7,
   fiber: 12,
   sodium: 0.5,
+  isVegan: true,
+  isVegetarian: true,
+  nutriscore: NutriScore.a,
 );
 final ingredient2 = Ingredient(
   remoteId: '2',
@@ -49,6 +53,7 @@ final ingredient2 = Ingredient(
   id: 2,
   code: '123456788',
   name: 'Burger soup',
+  brand: null,
   created: DateTime(2021, 5, 10),
   energy: 25,
   carbohydrates: 10,
@@ -66,6 +71,7 @@ final ingredient3 = Ingredient(
   id: 3,
   code: '123456789',
   name: 'Broccoli cake',
+  brand: 'Weightwatchers',
   created: DateTime(2021, 5, 2),
   energy: 1200,
   carbohydrates: 110,
@@ -83,6 +89,7 @@ final muesli = Ingredient(
   id: 1,
   code: '123456787',
   name: 'Müsli',
+  brand: 'Spar Gourmet',
   created: DateTime(2021, 5, 1),
   energy: 500,
   carbohydrates: 10,
@@ -92,6 +99,9 @@ final muesli = Ingredient(
   fatSaturated: 7,
   fiber: 12,
   sodium: 0.5,
+  isVegan: true,
+  isVegetarian: true,
+  nutriscore: NutriScore.b,
 );
 final milk = Ingredient(
   remoteId: '1',
@@ -100,6 +110,7 @@ final milk = Ingredient(
   id: 1,
   code: '123456787',
   name: 'Milk',
+  brand: null,
   created: DateTime(2021, 5, 1),
   energy: 500,
   carbohydrates: 10,
@@ -109,6 +120,8 @@ final milk = Ingredient(
   fatSaturated: 7,
   fiber: 12,
   sodium: 0.5,
+  isVegetarian: true,
+  nutriscore: NutriScore.c,
 );
 final apple = Ingredient(
   remoteId: '1',

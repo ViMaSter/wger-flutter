@@ -1,6 +1,6 @@
 /*
  * This file is part of wger Workout Manager <https://github.com/wger-project>.
- * Copyright (C) 2020, 2021 wger Team
+ * Copyright (c)  2026 wger Team
  *
  * wger Workout Manager is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -17,24 +17,66 @@
  */
 
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wger/helpers/consts.dart';
+import 'package:wger/helpers/locale.dart';
 import 'package:wger/helpers/shared_preferences.dart';
+import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/models/user/profile.dart';
 import 'package:wger/providers/base_provider.dart';
 
+enum DashboardWidget {
+  trophies('trophies'),
+  routines('routines'),
+  nutrition('nutrition'),
+  weight('weight'),
+  measurements('measurements'),
+  calendar('calendar')
+  ;
+
+  final String value;
+  const DashboardWidget(this.value);
+
+  static DashboardWidget? fromString(String s) {
+    for (final e in DashboardWidget.values) {
+      if (e.value == s) {
+        return e;
+      }
+    }
+    return null;
+  }
+}
+
+class DashboardItem {
+  final DashboardWidget widget;
+  bool isVisible;
+
+  DashboardItem(this.widget, {this.isVisible = true});
+
+  Map<String, dynamic> toJson() => {
+    'widget': widget.value,
+    'visible': isVisible,
+  };
+}
+
 class UserProvider with ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
+  Locale? userLocale;
   final WgerBaseProvider baseProvider;
   late SharedPreferencesAsync prefs;
 
   UserProvider(this.baseProvider, {SharedPreferencesAsync? prefs}) {
     this.prefs = prefs ?? PreferenceHelper.asyncPref;
     _loadThemeMode();
+    _loadUserLocale();
+    _loadDashboardConfig();
   }
 
+  static const String PREFS_DASHBOARD_CONFIG = 'dashboardConfig';
   static const PROFILE_URL = 'userprofile';
   static const VERIFY_EMAIL = 'verify-email';
 
@@ -44,15 +86,6 @@ class UserProvider with ChangeNotifier {
   void clear() {
     profile = null;
   }
-
-  // // change the unit of plates
-  // void changeUnit({changeTo = 'kg'}) {
-  //   if (changeTo == 'kg') {
-  //     profile?.weightUnitStr = 'lb';
-  //   } else {
-  //     profile?.weightUnitStr = 'kg';
-  //   }
-  // }
 
   // Load theme mode from SharedPreferences
   Future<void> _loadThemeMode() async {
@@ -67,6 +100,121 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Load saved user locale override from SharedPreferences. A null value means
+  /// the app should follow the system locale.
+  Future<void> _loadUserLocale() async {
+    final raw = await prefs.getString(PREFS_USER_LOCALE);
+    userLocale = _matchSupportedLocale(raw);
+    notifyListeners();
+  }
+
+  /// Match a stored locale tag (`languageCode` or `languageCode_subtag`) against
+  /// the app's [AppLocalizations.supportedLocales]. Returns the exact supported
+  /// instance to keep dropdown identity stable, or null when no match is found.
+  static Locale? _matchSupportedLocale(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    for (final locale in AppLocalizations.supportedLocales) {
+      if (encodeLocale(locale) == raw) {
+        return locale;
+      }
+    }
+    // Fallback: match by language only (e.g. stored "pl" picks the only pl).
+    final lang = raw.split('_').first;
+    for (final locale in AppLocalizations.supportedLocales) {
+      if (locale.languageCode == lang &&
+          (locale.countryCode == null || locale.countryCode!.isEmpty) &&
+          (locale.scriptCode == null || locale.scriptCode!.isEmpty)) {
+        return locale;
+      }
+    }
+    return null;
+  }
+
+  // Dashboard configuration
+  List<DashboardItem> _dashboardItems = DashboardWidget.values
+      .map((w) => DashboardItem(w))
+      .toList();
+
+  /// List of visible dashboard widgets in the configured order
+  List<DashboardWidget> get dashboardWidgets =>
+      _dashboardItems.where((w) => w.isVisible).map((w) => w.widget).toList();
+
+  List<DashboardWidget> get allDashboardWidgets => _dashboardItems.map((w) => w.widget).toList();
+
+  Future<void> _loadDashboardConfig() async {
+    final jsonString = await prefs.getString(PREFS_DASHBOARD_CONFIG);
+    if (jsonString == null) {
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final List<dynamic> decoded = jsonDecode(jsonString);
+      final List<DashboardItem> loaded = [];
+
+      for (final item in decoded) {
+        final widget = DashboardWidget.fromString(item['widget']);
+        if (widget != null) {
+          loaded.add(
+            DashboardItem(widget, isVisible: item['visible'] as bool),
+          );
+        }
+      }
+
+      // Add any missing widgets (e.g. newly added features)
+      for (final widget in DashboardWidget.values) {
+        if (!loaded.any((item) => item.widget == widget)) {
+          // Try to insert at the original position defined in the enum
+          // taking into account the current size of the list
+          var index = DashboardWidget.values.indexOf(widget);
+          if (index > loaded.length) {
+            index = loaded.length;
+          }
+          loaded.insert(index, DashboardItem(widget));
+        }
+      }
+
+      _dashboardItems = loaded;
+    } catch (_) {
+      // parsing failed -> keep defaults
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveDashboardConfig() async {
+    final serializable = _dashboardItems.map((e) => e.toJson()).toList();
+    await prefs.setString(PREFS_DASHBOARD_CONFIG, jsonEncode(serializable));
+  }
+
+  bool isDashboardWidgetVisible(DashboardWidget key) {
+    final widget = _dashboardItems.firstWhereOrNull((e) => e.widget == key);
+    return widget == null || widget.isVisible;
+  }
+
+  Future<void> setDashboardWidgetVisible(DashboardWidget key, bool visible) async {
+    final item = _dashboardItems.firstWhereOrNull((e) => e.widget == key);
+    if (item == null) {
+      return;
+    }
+
+    item.isVisible = visible;
+    await _saveDashboardConfig();
+    notifyListeners();
+  }
+
+  Future<void> setDashboardOrder(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final item = _dashboardItems.removeAt(oldIndex);
+    _dashboardItems.insert(newIndex, item);
+
+    await _saveDashboardConfig();
+    notifyListeners();
+  }
+
   //  Change mode on switch button click
   void setThemeMode(ThemeMode mode) async {
     themeMode = mode;
@@ -76,6 +224,20 @@ class UserProvider with ChangeNotifier {
       await prefs.remove(PREFS_USER_DARK_THEME);
     } else {
       await prefs.setBool(PREFS_USER_DARK_THEME, themeMode == ThemeMode.dark);
+    }
+
+    notifyListeners();
+  }
+
+  /// Override the app locale. Passing `null` clears the override and falls
+  /// back to the system locale via `localeListResolutionCallback`.
+  Future<void> setUserLocale(Locale? locale) async {
+    userLocale = locale;
+
+    if (locale == null) {
+      await prefs.remove(PREFS_USER_LOCALE);
+    } else {
+      await prefs.setString(PREFS_USER_LOCALE, encodeLocale(locale));
     }
 
     notifyListeners();

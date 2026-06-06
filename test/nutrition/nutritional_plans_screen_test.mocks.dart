@@ -76,6 +76,14 @@ class MockAuthProvider extends _i1.Mock implements _i3.AuthProvider {
           as _i3.AuthState);
 
   @override
+  bool get serverConfigWarning =>
+      (super.noSuchMethod(
+            Invocation.getter(#serverConfigWarning),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
   _i2.Client get client =>
       (super.noSuchMethod(
             Invocation.getter(#client),
@@ -143,6 +151,12 @@ class MockAuthProvider extends _i1.Mock implements _i3.AuthProvider {
       (super.noSuchMethod(Invocation.getter(#hasListeners), returnValue: false) as bool);
 
   @override
+  void clearServerConfigWarning() => super.noSuchMethod(
+    Invocation.method(#clearServerConfigWarning, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
   _i5.Future<void> setServerVersion() =>
       (super.noSuchMethod(
             Invocation.method(#setServerVersion, []),
@@ -173,6 +187,22 @@ class MockAuthProvider extends _i1.Mock implements _i3.AuthProvider {
   _i5.Future<bool> applicationUpdateRequired([String? version]) =>
       (super.noSuchMethod(
             Invocation.method(#applicationUpdateRequired, [version]),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
+  bool serverUpdateRequired([String? version]) =>
+      (super.noSuchMethod(
+            Invocation.method(#serverUpdateRequired, [version]),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
+  _i5.Future<bool> serverConfigSane() =>
+      (super.noSuchMethod(
+            Invocation.method(#serverConfigSane, []),
             returnValue: _i5.Future<bool>.value(false),
           )
           as _i5.Future<bool>);
@@ -323,10 +353,14 @@ class MockWgerBaseProvider extends _i1.Mock implements _i8.WgerBaseProvider {
   );
 
   @override
-  Map<String, String> getDefaultHeaders({bool? includeAuth = false}) =>
+  Map<String, String> getDefaultHeaders({
+    bool? includeAuth = false,
+    String? language,
+  }) =>
       (super.noSuchMethod(
             Invocation.method(#getDefaultHeaders, [], {
               #includeAuth: includeAuth,
+              #language: language,
             }),
             returnValue: <String, String>{},
           )
@@ -357,17 +391,40 @@ class MockWgerBaseProvider extends _i1.Mock implements _i8.WgerBaseProvider {
           as Uri);
 
   @override
-  _i5.Future<dynamic> fetch(Uri? uri) =>
+  _i5.Future<dynamic> fetch(
+    Uri? uri, {
+    int? maxRetries = 3,
+    Duration? initialDelay = const Duration(milliseconds: 250),
+    Duration? timeout = const Duration(seconds: 15),
+    String? language,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#fetch, [uri]),
+            Invocation.method(
+              #fetch,
+              [uri],
+              {
+                #maxRetries: maxRetries,
+                #initialDelay: initialDelay,
+                #timeout: timeout,
+                #language: language,
+              },
+            ),
             returnValue: _i5.Future<dynamic>.value(),
           )
           as _i5.Future<dynamic>);
 
   @override
-  _i5.Future<List<dynamic>> fetchPaginated(Uri? uri) =>
+  _i5.Future<List<dynamic>> fetchPaginated(
+    Uri? uri, {
+    String? language,
+    Duration? timeout = const Duration(seconds: 15),
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#fetchPaginated, [uri]),
+            Invocation.method(
+              #fetchPaginated,
+              [uri],
+              {#language: language, #timeout: timeout},
+            ),
             returnValue: _i5.Future<List<dynamic>>.value(<dynamic>[]),
           )
           as _i5.Future<List<dynamic>>);

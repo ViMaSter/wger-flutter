@@ -202,20 +202,23 @@ void main() {
 
       // Act
       await tester.tap(find.byKey(const ValueKey('toggleCustomServerButton')));
-      await tester.pumpAndSettle();
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('toggleApiTokenButton')));
-      await tester.pumpAndSettle();
+      await tester.pump();
       await tester.enterText(
         find.byKey(const ValueKey('inputApiToken')),
         '1234567890abcdef1234567890abcdef12345678',
       );
+
+      // Assert that API token mode is active before submitting.
+      expect(find.byKey(const ValueKey('inputApiToken')), findsOne);
+      expect(find.byKey(const Key('inputUsername')), findsNothing);
+      expect(find.byKey(const Key('inputPassword')), findsNothing);
+
       await tester.tap(find.byKey(const Key('actionButton')));
       await tester.pumpAndSettle();
 
       // Assert
-      expect(find.byKey(const ValueKey('inputApiToken')), findsOne);
-      expect(find.byKey(const Key('inputUsername')), findsNothing);
-      expect(find.byKey(const Key('inputPassword')), findsNothing);
       expect(find.textContaining('An Error Occurred'), findsNothing);
 
       verify(
@@ -252,9 +255,9 @@ void main() {
 
       // Act
       await tester.tap(find.byKey(const ValueKey('toggleCustomServerButton')));
-      await tester.pumpAndSettle();
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('toggleApiTokenButton')));
-      await tester.pumpAndSettle();
+      await tester.pump();
       await tester.enterText(
         find.byKey(const ValueKey('inputApiToken')),
         '31e2ea0322c07b9df583a9b6d1e794f7139e78d4',

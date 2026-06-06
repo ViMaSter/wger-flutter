@@ -1,13 +1,13 @@
 /*
  * This file is part of wger Workout Manager <https://github.com/wger-project>.
- * Copyright (C) 2020, 2021 wger Team
+ * Copyright (c)  2026 wger Team
  *
  * wger Workout Manager is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * wger Workout Manager is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
@@ -49,6 +49,11 @@ void main() {
 
   setUp(() {
     when(mockUserProvider.themeMode).thenReturn(ThemeMode.system);
+    when(mockUserProvider.userLocale).thenReturn(null);
+    when(mockUserProvider.setUserLocale(any)).thenAnswer((_) async {});
+    when(
+      mockSharedPreferences.getString(UserProvider.PREFS_DASHBOARD_CONFIG),
+    ).thenAnswer((_) async => null);
     when(mockExerciseProvider.exercises).thenReturn(getTestExercises());
     when(mockNutritionProvider.ingredients).thenReturn([ingredient1, ingredient2]);
   });
@@ -100,18 +105,23 @@ void main() {
   group('Theme settings', () {
     test('Default theme is system', () async {
       when(mockSharedPreferences.getBool(PREFS_USER_DARK_THEME)).thenAnswer((_) async => null);
-      final userProvider = await UserProvider(MockWgerBaseProvider(), prefs: mockSharedPreferences);
+      when(mockSharedPreferences.getString(PREFS_USER_LOCALE)).thenAnswer((_) async => null);
+      final userProvider = UserProvider(MockWgerBaseProvider(), prefs: mockSharedPreferences);
+      await Future.delayed(const Duration(milliseconds: 50)); // wait for async prefs load
       expect(userProvider.themeMode, ThemeMode.system);
     });
 
     test('Loads light theme', () async {
       when(mockSharedPreferences.getBool(PREFS_USER_DARK_THEME)).thenAnswer((_) async => false);
-      final userProvider = await UserProvider(MockWgerBaseProvider(), prefs: mockSharedPreferences);
+      when(mockSharedPreferences.getString(PREFS_USER_LOCALE)).thenAnswer((_) async => null);
+      final userProvider = UserProvider(MockWgerBaseProvider(), prefs: mockSharedPreferences);
+      await Future.delayed(const Duration(milliseconds: 50)); // wait for async prefs load
       expect(userProvider.themeMode, ThemeMode.light);
     });
 
     test('Saves theme to prefs', () {
       when(mockSharedPreferences.getBool(any)).thenAnswer((_) async => null);
+      when(mockSharedPreferences.getString(any)).thenAnswer((_) async => null);
       final userProvider = UserProvider(MockWgerBaseProvider(), prefs: mockSharedPreferences);
       userProvider.setThemeMode(ThemeMode.dark);
       verify(mockSharedPreferences.setBool(PREFS_USER_DARK_THEME, true)).called(1);
@@ -125,6 +135,80 @@ void main() {
       await tester.tap(find.text('Always light mode'));
 
       verify(mockUserProvider.setThemeMode(ThemeMode.light)).called(1);
+    });
+  });
+
+  group('Language switcher', () {
+    testWidgets('shows system option when no override set', (WidgetTester tester) async {
+      await tester.pumpWidget(createSettingsScreen());
+      await tester.pumpAndSettle();
+
+      // The dropdown is built; tap to open it.
+      final dropdown = find.byKey(const ValueKey('appLanguageDropdown'));
+      expect(dropdown, findsOneWidget);
+
+      await tester.ensureVisible(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+
+      // "System language" option exists in the open menu.
+      expect(find.text('System default'), findsWidgets);
+    });
+
+    testWidgets('selecting a language calls setUserLocale', (WidgetTester tester) async {
+      await tester.pumpWidget(createSettingsScreen());
+      await tester.pumpAndSettle();
+
+      final dropdown = find.byKey(const ValueKey('appLanguageDropdown'));
+      await tester.ensureVisible(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+
+      // German is rendered in its native name ("Deutsch") in the menu.
+      await tester.tap(find.text('Deutsch').last);
+      await tester.pumpAndSettle();
+
+      final captured =
+          verify(mockUserProvider.setUserLocale(captureAny)).captured.single as Locale?;
+      expect(captured?.languageCode, 'de');
+    });
+
+    testWidgets('selecting "System language" passes null', (WidgetTester tester) async {
+      when(mockUserProvider.userLocale).thenReturn(const Locale('de'));
+
+      await tester.pumpWidget(createSettingsScreen());
+      await tester.pumpAndSettle();
+
+      final dropdown = find.byKey(const ValueKey('appLanguageDropdown'));
+      await tester.ensureVisible(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('System default').last);
+      await tester.pumpAndSettle();
+
+      final captured = verify(mockUserProvider.setUserLocale(captureAny)).captured.single;
+      expect(captured, isNull);
+    });
+
+    testWidgets('renders supported locales in native script', (WidgetTester tester) async {
+      await tester.pumpWidget(createSettingsScreen());
+      await tester.pumpAndSettle();
+
+      final dropdown = find.byKey(const ValueKey('appLanguageDropdown'));
+      await tester.ensureVisible(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+
+      // Spot-check native names that sort near the top of the menu and are
+      // therefore visible without scrolling the (large) dropdown overlay.
+      expect(find.text('Deutsch'), findsWidgets);
+      expect(find.text('English'), findsWidgets);
+      expect(find.text('Català'), findsWidgets);
     });
   });
 }

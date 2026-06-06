@@ -55,7 +55,7 @@ class _DashboardMeasurementWidgetState extends State<DashboardMeasurementWidget>
       );
     }
     return Consumer<MeasurementProvider>(
-      builder: (context, _, __) => Card(
+      builder: (context, _, _) => Card(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -117,8 +117,8 @@ class _DashboardMeasurementWidgetState extends State<DashboardMeasurementWidget>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Theme.of(context).textTheme.headlineSmall!.color!
-                                      .withOpacity(
-                                        _current == entry.key ? 0.9 : 0.4,
+                                      .withValues(
+                                        alpha: _current == entry.key ? 0.9 : 0.4,
                                       ),
                                 ),
                               ),
