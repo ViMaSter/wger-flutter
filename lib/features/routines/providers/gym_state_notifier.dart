@@ -551,6 +551,24 @@ class GymStateNotifier extends _$GymStateNotifier {
     _updateProgress(slotPage.key, (p) => p.copyWith(timerStartedAt: startedAt));
   }
 
+  /// Restarts the countdown of the current timer page so it ends [remaining]
+  /// from now, e.g. to reset it to the minimum or maximum rest of the set.
+  /// No-op without a countdown (other pages, count-up rest).
+  void resetRest(Duration remaining) {
+    final slotPage = state.getSlotEntryPageByIndex();
+    if (slotPage == null || slotPage.type != SlotPageType.timer) {
+      return;
+    }
+    final duration = state.restDurationFor(slotPage);
+    if (duration == null) {
+      return;
+    }
+
+    // The rest is stored by its start, see [extendRest]
+    final startedAt = clock.now().add(remaining).subtract(duration);
+    _updateProgress(slotPage.key, (p) => p.copyWith(timerStartedAt: startedAt));
+  }
+
   /// Saves the log draft of the current log page, a new set or a correction,
   /// and moves on to the next page. A failed write propagates to the caller.
   Future<void> logCurrentSet() async {

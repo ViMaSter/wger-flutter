@@ -31,6 +31,7 @@ import 'package:wger/core/widgets/progress_indicator.dart';
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_notification_controller.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
+import 'package:wger/features/routines/providers/gym_rest_timer_provider.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/routines_notifier.dart';
@@ -65,6 +66,8 @@ class _GymModeState extends ConsumerState<GymMode> {
     super.initState();
     _controller = PageController(initialPage: 0);
     _visibility = ref.read(gymModeVisibleProvider.notifier);
+    // Follows the rest countdown for the paired watch and the end-of-rest alert
+    ref.read(gymRestTimerProvider);
     _initData = _loadGymState();
   }
 

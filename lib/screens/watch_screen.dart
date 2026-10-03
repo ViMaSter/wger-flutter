@@ -17,197 +17,280 @@
  */
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:watch_connectivity/watch_connectivity.dart';
-import 'package:wear_plus/wear_plus.dart';
-import 'package:wger/main.dart';
-import 'package:logging/logging.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:vibration/vibration.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-
-final Logger _logger = Logger('watch_screen');
+import 'package:watch_connectivity/watch_connectivity.dart';
 
 class WatchScreen extends StatefulWidget {
-  const WatchScreen();
+  const WatchScreen({super.key, this.now});
+
+  final DateTime Function()? now;
 
   @override
   State<WatchScreen> createState() => _WatchScreenState();
 }
 
 class _WatchScreenState extends State<WatchScreen> {
-  String _remainingTimeText = '-';
-  String _exerciseName = '-';
-  String _repetitions = '-';
-  String _weight = '-';
-  String _currentSetCount = '-';
-  String _totalSetCount = '-';
+  final _watch = WatchConnectivity();
+  final _subscriptions = <StreamSubscription<Map<String, dynamic>>>[];
+  final _bufferedUpdates = <Map<String, dynamic>>[];
+  final _exercise = <String, String>{};
+  bool _loadingContext = true;
+  String? _remainingTimeText;
+  DateTime? _endTime;
+  DateTime? _lastExpiredEndTime;
+  int _timerGeneration = 0;
+  int? _lastRemainingSeconds;
+  Timer? _countdownTask;
+  Future<void> _wakeOperation = Future<void>.value();
 
-  // register a dictionary of string, function named `contextActions` to handle incoming messages
-  final Map<String, Function(Map<String, dynamic>)> contextActions = {};
-
-  void onWorkoutChange(Map<String, dynamic> context) {
-    setState(() {
-      _exerciseName = (context['exerciseName']?.toString() ?? '-');
-      _weight = (context['weight']?.toString() ?? '-');
-      _repetitions = (context['repetitions']?.toString() ?? '-');
-      _currentSetCount = (context['currentSetCount']?.toString() ?? '-');
-      _totalSetCount = (context['totalSetCount']?.toString() ?? '-');
-    });
-  }
-
-  void onTimerChange(Map<String, dynamic> context) {
-    final endTimeISO8601 = context['endTimeISO8601'] as String;
-    final now = DateTime.now();
-    final endTime = DateTime.parse(endTimeISO8601);
-    final inThePast = endTime.isBefore(now);
-    if (inThePast) {
-      _cancelCountdown();
-      return;
-    }
-
-    _startCountdown(endTime);
-  }
-
-  void reactToUpdate(context) {
-    if (context == null) {
-      _logger.warning('No valid context found');
-      return;
-    }
-
-    _logger.info('[WATCH CONNECTIVITY] Applying current state...');
-    try {
-      _logger.info('Last context to apply; applying for each key in: $context');
-
-      context.forEach((key, value) {
-        final action = contextActions[key];
-        if (action == null) {
-          _logger.warning('No action found for context key: $key');
-          return;
-        }
-
-        try {
-          if (value is! Map) {
-            _logger.warning('Context value for key "$key" is not a Map: $value');
-            return;
-          }
-
-          final data = value.map<String, dynamic>((k, v) => MapEntry(k.toString(), v));
-          _logger.info('Applying context data for key "$key": $data');
-          action(data);
-        } catch (e, st) {
-          _logger.severe(
-            'Failed to convert context value for key "$key" to Map<String,dynamic>: $e',
-            e,
-            st,
-          );
-        }
-      });
-    } catch (e, st) {
-      _logger.severe('Failed to get initial watch context: $e', e, st);
-    }
-  }
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
 
   @override
   void initState() {
-    WakelockPlus.enable();
     super.initState();
-    contextActions['exercise'] = onWorkoutChange;
-    contextActions['timer'] = onTimerChange;
-
-    (() async {
-      final watch = WatchConnectivity();
-      watch.messageStream.listen((message) {
-        _logger.info('Watch message received: $message');
-        reactToUpdate(message);
-      });
-    })();
+    _wakeOperation = _setWakelock(true);
+    unawaited(_connect());
   }
 
-  Timer? _countdownTask;
-  void _startCountdown(DateTime endTime) {
-    _countdownTask?.cancel();
-    _countdownTask = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      final remainingSeconds = endTime.difference(DateTime.now()).inSeconds;
-      final minutes = (remainingSeconds ~/ 60).toString();
-      final seconds = (remainingSeconds % 60).toString().padLeft(2, '0');
-
-      if (remainingSeconds == 15) {
-        await Vibration.vibrate(pattern: [0, 75, 25, 75], intensities: [0, 255, 0, 192]);
-      }
-      if (remainingSeconds == 3 || remainingSeconds == 2 || remainingSeconds == 1) {
-        await Vibration.vibrate(
-          pattern: [0, 75, 25, 75, 825, 75, 25, 75, 825, 75, 25, 75, 825],
-          intensities: [0, 255, 0, 192, 0, 255, 0, 192, 0, 255, 0, 192, 0],
-        );
-      }
-      if (remainingSeconds > 0) {
-        setState(() {
-          _remainingTimeText = '$minutes:$seconds';
-        });
+  Future<void> _connect() async {
+    try {
+      if (!await _watch.isSupported || !mounted) {
         return;
       }
-
-      setState(() {
-        _remainingTimeText = '0:00';
-      });
-
-      _logger.warning("Large notice");
-      await Vibration.vibrate(duration: 1000);
-      _countdownTask?.cancel();
-    });
+    } catch (_) {
+      return;
+    }
+    for (final stream in [_watch.messageStream, _watch.contextStream]) {
+      _subscriptions.add(stream.listen(_receive, onError: (Object _) {}));
+    }
+    await _loadContext();
   }
 
-  void _cancelCountdown() {
+  Future<void> _setWakelock(bool enabled) async {
+    try {
+      await WakelockPlus.toggle(enable: enabled);
+    } catch (_) {}
+  }
+
+  Future<void> _loadContext() async {
+    try {
+      final context = await _watch.applicationContext;
+      _apply(context);
+    } catch (_) {}
+    try {
+      final contexts = await _watch.receivedApplicationContexts;
+      contexts.forEach(_apply);
+    } catch (_) {}
+    if (!mounted) {
+      return;
+    }
+    _loadingContext = false;
+    _bufferedUpdates.forEach(_apply);
+    _bufferedUpdates.clear();
+  }
+
+  void _receive(Map<String, dynamic> update) {
+    if (!mounted) {
+      return;
+    }
+    if (_loadingContext) {
+      _bufferedUpdates.add(update);
+    }
+    _apply(update);
+  }
+
+  void _apply(Map<String, dynamic> update) {
+    if (!mounted) {
+      return;
+    }
+    final exercise = update['exercise'];
+    if (exercise is Map) {
+      setState(() {
+        for (final key in [
+          'exerciseName',
+          'repetitions',
+          'weight',
+          'currentSetCount',
+          'totalSetCount',
+        ]) {
+          if (!exercise.containsKey(key)) {
+            continue;
+          }
+          final value = exercise[key];
+          if (value == null) {
+            _exercise.remove(key);
+          } else if (value is String || value is num) {
+            _exercise[key] = value.toString();
+          }
+        }
+      });
+    }
+    if (!update.containsKey('timer')) {
+      return;
+    }
+    final timer = update['timer'];
+    if (timer == null || (timer is Map && timer['endTimeISO8601'] == null)) {
+      if (_endTime != null && !_endTime!.isAfter(_now)) {
+        _tick();
+      }
+      _countdownTask?.cancel();
+      _endTime = null;
+      _lastRemainingSeconds = null;
+      setState(() => _remainingTimeText = null);
+      return;
+    }
+    if (timer is! Map || timer['endTimeISO8601'] is! String) {
+      return;
+    }
+    final endTime = DateTime.tryParse(timer['endTimeISO8601'] as String);
+    if (endTime == null || endTime == _endTime) {
+      return;
+    }
     _countdownTask?.cancel();
+    _timerGeneration++;
+    _endTime = endTime;
+    _lastRemainingSeconds = null;
+    _tick(notify: false);
+    if (endTime.isAfter(_now)) {
+      _countdownTask = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
+  }
+
+  void _tick({bool notify = true}) {
+    if (!mounted || _endTime == null) {
+      return;
+    }
+    final endTime = _endTime!;
+    final milliseconds = endTime.difference(_now).inMilliseconds;
+    final remaining = milliseconds > 0 ? (milliseconds / 1000).ceil() : 0;
     setState(() {
-      _remainingTimeText = '0:00';
+      _remainingTimeText = '${remaining ~/ 60}:${(remaining % 60).toString().padLeft(2, '0')}';
     });
+    if (remaining == 0) {
+      _countdownTask?.cancel();
+      if (_lastExpiredEndTime != endTime) {
+        _lastExpiredEndTime = endTime;
+        if (notify) {
+          unawaited(_vibrate(endTime, expiry: true));
+        }
+      }
+    } else if (notify &&
+        remaining != _lastRemainingSeconds &&
+        (remaining == 15 || remaining <= 3)) {
+      unawaited(_vibrate(endTime));
+    }
+    _lastRemainingSeconds = remaining;
+  }
+
+  Future<void> _vibrate(DateTime endTime, {bool expiry = false}) async {
+    final generation = _timerGeneration;
+    try {
+      if (!await Vibration.hasVibrator()) {
+        return;
+      }
+      final custom = await Vibration.hasCustomVibrationsSupport();
+      if (!mounted || generation != _timerGeneration) {
+        return;
+      }
+      if (_endTime != endTime && !(expiry && _endTime == null && _lastExpiredEndTime == endTime)) {
+        return;
+      }
+      if (!expiry && _lastRemainingSeconds == 0) {
+        return;
+      }
+      if (custom) {
+        await Vibration.vibrate(duration: expiry ? 1000 : 75);
+      } else if (expiry) {
+        await Vibration.vibrate();
+      } else {
+        await HapticFeedback.selectionClick();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _cancelVibration() async {
+    try {
+      await Vibration.cancel();
+    } catch (_) {}
   }
 
   @override
   void dispose() {
-    _cancelCountdown();
+    _countdownTask?.cancel();
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+    unawaited(_wakeOperation.then((_) => _setWakelock(false)));
+    unawaited(_cancelVibration());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Builder(
-        builder: (BuildContext context) {
-          return AmbientMode(
-            builder: (context, mode, child) {
-              final finalStr = [];
-
-              final weightStr = _weight;
-              final hasExercise = _exerciseName != '-';
-              final hasTimer = _remainingTimeText != '-';
-              final hasSetInfo = _currentSetCount != '-' && _totalSetCount != '-';
-
-              if(hasSetInfo) {
-                finalStr.add('Set: $_currentSetCount/$_totalSetCount');
-              }
-              
-              if (hasExercise) {
-                finalStr.add('$_exerciseName\n$_repetitions x $weightStr kg');
-              }
-
-              if (hasTimer) {
-                finalStr.add('Rest Time:\n$_remainingTimeText');
-              }
-
-              // Both exercise and timer exist
-              return Center(
-                child: Text(
-                  finalStr.isNotEmpty ? finalStr.join('\n\n') : 'No data (yet)',
-                  textAlign: TextAlign.center,
+    final hasExercise = _exercise.isNotEmpty;
+    final hasTimer = _remainingTimeText != null;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: (constraints.maxHeight - 48).clamp(0, double.infinity),
                 ),
-              );
-            },
-          );
-        },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!hasExercise && !hasTimer)
+                      const Text(
+                        'No data (yet)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    if (hasExercise) ...[
+                      const Icon(Icons.fitness_center, color: Colors.white70, size: 20),
+                      const SizedBox(height: 6),
+                      Text(
+                        _exercise['exerciseName'] ?? '-',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${_exercise['repetitions'] ?? '-'} x ${_exercise['weight'] ?? '-'} kg',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Set: ${_exercise['currentSetCount'] ?? '-'}/${_exercise['totalSetCount'] ?? '-'}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                    if (hasTimer) ...[
+                      const SizedBox(height: 12),
+                      const Text('Rest Time', style: TextStyle(color: Colors.white70)),
+                      Text(
+                        _remainingTimeText!,
+                        style: const TextStyle(color: Colors.white, fontSize: 28),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

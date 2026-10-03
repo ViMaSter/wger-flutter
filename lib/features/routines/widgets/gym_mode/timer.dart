@@ -18,7 +18,6 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
@@ -128,10 +127,6 @@ class TimerCountdownWidget extends ConsumerStatefulWidget {
 class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
   late Timer _uiTimer;
 
-  /// The end the alert was played for, so each rest (also an extended one)
-  /// alerts once
-  DateTime? _alertedFor;
-
   /// The moment the countdown ends. The start time lives in the gym state so
   /// the countdown continues when the page is disposed and re-created while
   /// navigating; until the state is updated, fall back to starting now.
@@ -143,11 +138,6 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
   @override
   void initState() {
     super.initState();
-
-    // Don't notify when returning to a countdown that already expired while
-    // the user was on another page. Set before the first build, which notifies.
-    final endTime = _endTime(ref.read(gymStateProvider));
-    _alertedFor = endTime.isBefore(clock.now()) ? endTime : null;
 
     // Deferred because a provider can't be modified during the widget
     // life-cycle.
@@ -178,19 +168,14 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
     final remaining = endTime.difference(clock.now());
     final remainingSeconds = remaining.inSeconds <= 0 ? 0 : remaining.inSeconds;
     final displayTime = DateTime(2000, 1, 1, 0, 0, 0).add(Duration(seconds: remainingSeconds));
+    final notifier = ref.read(gymStateProvider.notifier);
+    final isStarted = gymState.progressOf(widget.slotKey).timerStartedAt != null;
 
-    //  When countdown finishes, notify ONCE, and respect settings
-    if (remainingSeconds == 0 && _alertedFor != endTime) {
-      _alertedFor = endTime;
-      if (gymState.alertOnCountdownEnd) {
-        // Strongest built-in haptic on both platforms (iOS: full vibration,
-        // Android: LONG_PRESS). heavyImpact maps to a weak tick on Android.
-        HapticFeedback.vibrate();
-
-        // Not that this only works on desktop platforms
-        SystemSound.play(SystemSoundType.alert);
-      }
-    }
+    // The alert at the end of the rest comes from gymRestTimerProvider, which
+    // also fires while the user is on another page.
+    final slotPage = gymState.getSlotPageByKey(widget.slotKey);
+    final minimum = slotPage == null ? null : gymState.restDurationFor(slotPage)?.inSeconds;
+    final maximum = slotPage?.setConfigData?.maxRestTime?.toInt();
 
     return Column(
       children: [
@@ -207,6 +192,46 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
                 style: Theme.of(
                   context,
                 ).textTheme.displayLarge!.copyWith(color: Theme.of(context).colorScheme.primary),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  IconButton(
+                    key: const ValueKey('rest-timer-minus'),
+                    tooltip: '-15s',
+                    onPressed: remainingSeconds == 0
+                        ? null
+                        : () => notifier.extendRest(const Duration(seconds: -15)),
+                    icon: const Icon(Icons.remove),
+                  ),
+                  IconButton(
+                    key: const ValueKey('rest-timer-plus'),
+                    tooltip: '+15s',
+                    onPressed: isStarted
+                        ? () => notifier.extendRest(const Duration(seconds: 15))
+                        : null,
+                    icon: const Icon(Icons.add),
+                  ),
+                  IconButton(
+                    key: const ValueKey('rest-timer-min'),
+                    tooltip: minimum == null ? 'Reset to min' : 'Reset to ${minimum}s (min)',
+                    onPressed: minimum == null
+                        ? null
+                        : () => notifier.resetRest(Duration(seconds: minimum)),
+                    icon: const Icon(Icons.timer),
+                  ),
+                  IconButton(
+                    key: const ValueKey('rest-timer-max'),
+                    tooltip: maximum == null ? 'Reset to max' : 'Reset to ${maximum}s (max)',
+                    onPressed: maximum == null
+                        ? null
+                        : () => notifier.resetRest(Duration(seconds: maximum)),
+                    icon: const Icon(Icons.timer_outlined),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               UpNextWidget(widget.slotKey),
