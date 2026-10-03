@@ -46,6 +46,7 @@ import 'package:wger/core/shared_preferences.dart';
 import 'package:wger/core/splash_screen.dart';
 import 'package:wger/core/update_app_screen.dart';
 import 'package:wger/core/update_server_screen.dart';
+import 'package:wger/core/watch_companion.dart';
 import 'package:wger/core/widgets/about.dart';
 import 'package:wger/core/widgets/legacy_material_scope.dart';
 import 'package:wger/core/widgets/log_overview.dart';
@@ -180,7 +181,12 @@ void main() async {
   );
 
   // Application
-  runApp(const ProviderScope(child: MainApp()));
+  final isWear = await detectWearDevice();
+  runApp(
+    ProviderScope(
+      child: ApplicationRoot(isWear: isWear, phoneApp: const MainApp()),
+    ),
+  );
 }
 
 class MainApp extends ConsumerWidget {

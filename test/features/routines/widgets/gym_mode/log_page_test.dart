@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -25,6 +26,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wger/core/widgets/error.dart';
 import 'package:wger/features/exercises/models/exercise.dart';
 import 'package:wger/features/routines/models/day_data.dart';
@@ -32,9 +34,11 @@ import 'package:wger/features/routines/models/log.dart';
 import 'package:wger/features/routines/models/routine.dart';
 import 'package:wger/features/routines/models/set_config_data.dart';
 import 'package:wger/features/routines/models/slot_data.dart';
+import 'package:wger/features/routines/providers/gym_log_notifier.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_repository.dart';
+import 'package:wger/features/routines/widgets/gym_mode/linkified_comment.dart';
 import 'package:wger/features/routines/widgets/gym_mode/log_page.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/l10n/localizations_delegates.dart';
@@ -68,8 +72,10 @@ void main() {
     late List<Exercise> testExercises;
     late ProviderContainer container;
     late MockWorkoutLogRepository mockWorkoutLogRepo;
+    late List<Map<String, dynamic>> watchUpdates;
 
     setUp(() {
+      watchUpdates = [];
       SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
       testExercises = getTestExercises();
       mockWorkoutLogRepo = MockWorkoutLogRepository();
@@ -101,10 +107,10 @@ void main() {
       notifier.setCurrentPage(2);
     }
 
-    Future<void> pumpLogPage(WidgetTester tester) async {
+    Future<void> pumpLogPage(WidgetTester tester, {String? uuid}) async {
       // The widget resolves its own slot now, so hand it the uuid of the slot
       // the gym state was seeded on (via setCurrentPage above).
-      final slotUuid = container.read(gymStateProvider).getSlotEntryPageByIndex()!.uuid;
+      final slotUuid = uuid ?? container.read(gymStateProvider).getSlotEntryPageByIndex()!.uuid;
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -119,7 +125,15 @@ void main() {
                   final controller = PageController();
                   return PageView(
                     controller: controller,
-                    children: [LogPage(controller, slotUuid)],
+                    children: [
+                      LogPage(
+                        controller,
+                        slotUuid,
+                        watchUpdate: (update) async {
+                          watchUpdates.add(update);
+                        },
+                      ),
+                    ],
                   );
                 },
               ),
@@ -129,6 +143,150 @@ void main() {
       );
       await tester.pumpAndSettle();
     }
+
+    testWidgets('counts only log pages after indices are recalculated', (tester) async {
+      seedLogPage(testdata.getTestRoutine());
+      final notifier = container.read(gymStateProvider.notifier);
+      notifier.recalculateIndices();
+      final logs = notifier.state.pages
+          .firstWhere((page) => page.type == PageType.set)
+          .slotPages
+          .where((page) => page.type == SlotPageType.log)
+          .toList();
+      expect(logs.length, greaterThan(1));
+      notifier.setCurrentPage(logs[1].pageIndex);
+      await pumpLogPage(tester);
+
+      expect(find.text('2 / ${logs.length}'), findsOneWidget);
+      expect(watchUpdates.single['exercise'], {
+        'exerciseName': logs[1].setConfigData!.exercise.getTranslation('en').name,
+        'repetitions': logs[1].setConfigData!.repetitions,
+        'weight': logs[1].setConfigData!.weight,
+        'currentSetCount': 2,
+        'totalSetCount': logs.length,
+      });
+    });
+
+    testWidgets('prebuilt inactive log page sends nothing until it becomes current', (
+      tester,
+    ) async {
+      seedLogPage(testdata.getTestRoutine());
+      final notifier = container.read(gymStateProvider.notifier);
+      final logs = notifier.state.pages
+          .firstWhere((page) => page.type == PageType.set)
+          .slotPages
+          .where((page) => page.type == SlotPageType.log)
+          .toList();
+      await pumpLogPage(tester, uuid: logs[1].uuid);
+      expect(watchUpdates, isEmpty);
+
+      notifier.setCurrentPage(logs[1].pageIndex);
+      await tester.pumpAndSettle();
+      expect(watchUpdates, hasLength(1));
+      expect((watchUpdates.single['exercise'] as Map)['currentSetCount'], 2);
+
+      notifier.setCurrentPage(logs[0].pageIndex);
+      await tester.pumpAndSettle();
+      expect(watchUpdates, hasLength(1));
+      notifier.setCurrentPage(logs[1].pageIndex);
+      await tester.pumpAndSettle();
+      expect(watchUpdates, hasLength(2));
+    });
+
+    testWidgets('superset count preserves alternating exercise and differing set order', (
+      tester,
+    ) async {
+      final routine = testdata.getTestRoutine();
+      final template = routine.dayDataGym.first.slots.first.setConfigs.first;
+      routine.dayDataGym.first.slots = [
+        SlotData(
+          isSuperset: true,
+          exerciseIds: [testExercises[0].id, testExercises[1].id],
+          setConfigs: [
+            template.copyWith(
+              exerciseId: testExercises[0].id,
+              exercise: testExercises[0],
+              repetitions: 10,
+            ),
+            template.copyWith(
+              exerciseId: testExercises[1].id,
+              exercise: testExercises[1],
+              repetitions: 8,
+            ),
+            template.copyWith(
+              exerciseId: testExercises[0].id,
+              exercise: testExercises[0],
+              repetitions: 6,
+            ),
+          ],
+        ),
+      ];
+      seedLogPage(routine);
+      final notifier = container.read(gymStateProvider.notifier);
+      notifier.recalculateIndices();
+      final logs = notifier.state.pages
+          .firstWhere((page) => page.type == PageType.set)
+          .slotPages
+          .where((page) => page.type == SlotPageType.log)
+          .toList();
+      expect(logs.map((page) => page.setConfigData!.exerciseId), [
+        testExercises[0].id,
+        testExercises[1].id,
+        testExercises[0].id,
+      ]);
+      notifier.setCurrentPage(logs[1].pageIndex);
+      await pumpLogPage(tester);
+      expect(find.text('2 / 3'), findsOneWidget);
+      expect((watchUpdates.last['exercise'] as Map)['repetitions'], 8);
+      notifier.setCurrentPage(logs[2].pageIndex);
+      await pumpLogPage(tester);
+      expect(find.text('3 / 3'), findsOneWidget);
+      expect((watchUpdates.last['exercise'] as Map)['repetitions'], 6);
+    });
+
+    testWidgets('page change before frame dispatch cancels stale watch update', (tester) async {
+      seedLogPage(testdata.getTestRoutine());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        container.read(gymStateProvider.notifier).setCurrentPage(0);
+      });
+      await pumpLogPage(tester);
+      expect(watchUpdates, isEmpty);
+    });
+
+    testWidgets('exercise change sends the new exercise with its slot set count', (tester) async {
+      seedLogPage(testdata.getTestRoutine());
+      await pumpLogPage(tester);
+      final notifier = container.read(gymStateProvider.notifier);
+      final currentExercise = notifier.state.getSlotEntryPageByIndex()!.setConfigData!.exerciseId;
+      final next = notifier.state.pages
+          .expand((page) => page.slotPages)
+          .firstWhere(
+            (page) =>
+                page.type == SlotPageType.log && page.setConfigData!.exerciseId != currentExercise,
+          );
+      notifier.setCurrentPage(next.pageIndex);
+      await pumpLogPage(tester);
+      final exercise = watchUpdates.last['exercise'] as Map;
+      expect(exercise['exerciseName'], next.setConfigData!.exercise.getTranslation('en').name);
+      expect(exercise['currentSetCount'], 1);
+      expect(exercise['repetitions'], next.setConfigData!.repetitions);
+      expect(exercise['weight'], next.setConfigData!.weight);
+    });
+
+    testWidgets('watch tracks edited repetitions and weight without rebuild duplicates', (
+      tester,
+    ) async {
+      seedLogPage(testdata.getTestRoutine());
+      await pumpLogPage(tester);
+      container.read(gymLogProvider.notifier).setRepetitions(12);
+      container.read(gymLogProvider.notifier).setWeight(34);
+      await tester.pumpAndSettle();
+      expect((watchUpdates.last['exercise'] as Map)['repetitions'], 12);
+      expect((watchUpdates.last['exercise'] as Map)['weight'], 34);
+      final count = watchUpdates.length;
+      await tester.pump();
+      expect(watchUpdates, hasLength(count));
+    });
 
     testWidgets('handles null reps/weight without crashing', (tester) async {
       final notifier = container.read(gymStateProvider.notifier);
@@ -297,6 +455,88 @@ void main() {
       await tester.tap(removeBtn);
       await tester.pumpAndSettle();
       expect(find.descendant(of: weightWidget, matching: find.text('1.25')), findsOneWidget);
+    });
+  });
+
+  group('HTTP(S) comments', () {
+    List<TextSpan> links(WidgetTester tester) {
+      final text = tester.widget<Text>(
+        find.descendant(
+          of: find.byType(LinkifiedComment),
+          matching: find.byType(Text),
+        ),
+      );
+      return (text.textSpan as TextSpan?)?.children
+              ?.whereType<TextSpan>()
+              .where((span) => span.recognizer != null)
+              .toList() ??
+          [];
+    }
+
+    Future<void> pumpComment(
+      WidgetTester tester,
+      String text,
+      Future<bool> Function(Uri, {LaunchMode mode}) launch,
+    ) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LinkifiedComment(text, launch: launch),
+        ),
+      ),
+    );
+
+    testWidgets('only valid HTTP(S) links launch externally and retain punctuation', (
+      tester,
+    ) async {
+      final launched = <Uri>[];
+      final modes = <LaunchMode>[];
+      const comment =
+          'See (https://example.com/path?q=1). http://example.org '
+          'ftp://example.com mailto:a@example.com https:// https:///path '
+          'javascript:https://example.net https://bad%20host https://example.com:99999';
+      await pumpComment(tester, comment, (uri, {mode = LaunchMode.platformDefault}) async {
+        launched.add(uri);
+        modes.add(mode);
+        return true;
+      });
+      final spans = links(tester);
+      expect(spans, hasLength(2));
+      expect(spans.first.text, 'https://example.com/path?q=1');
+      for (final span in spans) {
+        (span.recognizer as TapGestureRecognizer).onTap!();
+        await tester.pump();
+      }
+      expect(launched.map((uri) => uri.scheme), ['https', 'http']);
+      expect(modes, everyElement(LaunchMode.externalApplication));
+      expect(tester.widget<Text>(find.byType(Text)).textSpan!.toPlainText(), comment);
+    });
+
+    for (final throws in [false, true]) {
+      testWidgets('failed launch (${throws ? 'exception' : 'false'}) leaves readable plain text', (
+        tester,
+      ) async {
+        const comment = 'Read https://example.com/help.';
+        await pumpComment(tester, comment, (uri, {mode = LaunchMode.platformDefault}) async {
+          if (throws) {
+            throw StateError('unavailable');
+          }
+          return false;
+        });
+        (links(tester).single.recognizer as TapGestureRecognizer).onTap!();
+        await tester.pumpAndSettle();
+        expect(links(tester), isEmpty);
+        expect(tester.widget<Text>(find.byType(Text)).textSpan!.toPlainText(), comment);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('non-link comments stay ordinary readable text', (tester) async {
+      const comment = 'No link: ftp://example.com https://';
+      await pumpComment(tester, comment, (uri, {mode = LaunchMode.platformDefault}) async {
+        fail('Non-HTTP(S) text must not launch');
+      });
+      expect(find.text(comment), findsOneWidget);
+      expect(links(tester), isEmpty);
     });
   });
 }

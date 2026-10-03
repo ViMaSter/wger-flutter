@@ -76,8 +76,6 @@ class RoutineDayWidget extends StatelessWidget {
   Widget getSlotDataRow(SlotData slotData, BuildContext context) {
     return Column(
       children: [
-        if (slotData.comment.isNotEmpty) MutedText(slotData.comment),
-
         // If there's a single exercise with different sets, group them all into
         // the one exercise and don't show separate rows for each one.
         ...slotData.setConfigs
@@ -95,6 +93,7 @@ class RoutineDayWidget extends StatelessWidget {
                 ),
               );
             }),
+        if (slotData.comment.trim().isNotEmpty) MutedText(slotData.comment),
       ],
     );
   }
@@ -154,7 +153,7 @@ class DayHeader extends StatelessWidget {
         style: Theme.of(context).textTheme.headlineSmall,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(_dayData.day!.description),
+      subtitle: _dayData.day!.description.trim().isEmpty ? null : Text(_dayData.day!.description),
       leading: _viewMode ? null : const Icon(Icons.play_arrow),
       trailing: _dayData.date.isSameDayAs(DateTime.now()) ? const Icon(Icons.today) : null,
       minLeadingWidth: 8,

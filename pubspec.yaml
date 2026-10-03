@@ -115,6 +115,8 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.8
   riverpod_generator: ^4.0.4
   shared_preferences_platform_interface: ^2.4.2
+  vibration_platform_interface: ^0.1.2
+  wakelock_plus_platform_interface: ^1.7.0
 
   # Script to read out unused translations
   #translations_cleaner: ^0.0.5

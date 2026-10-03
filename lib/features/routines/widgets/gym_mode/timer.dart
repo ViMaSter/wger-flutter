@@ -17,15 +17,16 @@
  */
 import 'dart:async';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:wger/features/routines/providers/gym_rest_timer_provider.dart';
+import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/widgets/gym_mode/navigation.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
-class TimerWidget extends StatefulWidget {
+class TimerWidget extends ConsumerStatefulWidget {
   final PageController _controller;
 
   const TimerWidget(this._controller);
@@ -34,15 +35,13 @@ class TimerWidget extends StatefulWidget {
   _TimerWidgetState createState() => _TimerWidgetState();
 }
 
-class _TimerWidgetState extends State<TimerWidget> {
-  late DateTime _startTime;
-  final _maxSeconds = 600;
+class _TimerWidgetState extends ConsumerState<TimerWidget> {
   late Timer _uiTimer;
 
   @override
   void initState() {
     super.initState();
-    _startTime = DateTime.now();
+    ref.read(gymRestTimerProvider).startElapsed();
 
     _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       // ignore: no-empty-block, avoid-empty-setstate
@@ -60,8 +59,7 @@ class _TimerWidgetState extends State<TimerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final elapsed = DateTime.now().difference(_startTime).inSeconds;
-    final displaySeconds = elapsed > _maxSeconds ? _maxSeconds : elapsed;
+    final displaySeconds = ref.watch(gymRestTimerProvider).elapsedSeconds;
     final displayTime = DateTime(2000, 1, 1, 0, 0, 0).add(Duration(seconds: displaySeconds));
 
     return Column(
@@ -100,15 +98,12 @@ class TimerCountdownWidget extends ConsumerStatefulWidget {
 }
 
 class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
-  late DateTime _endTime;
   late Timer _uiTimer;
-
-  bool _hasNotified = false;
+  int? _enteredPage;
 
   @override
   void initState() {
     super.initState();
-    _endTime = DateTime.now().add(Duration(seconds: widget._seconds));
 
     _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       // ignore: no-empty-block, avoid-empty-setstate
@@ -126,46 +121,87 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final remaining = _endTime.difference(DateTime.now());
-    final remainingSeconds = remaining.inSeconds <= 0 ? 0 : remaining.inSeconds;
-    final displayTime = DateTime(2000, 1, 1, 0, 0, 0).add(Duration(seconds: remainingSeconds));
+    final timer = ref.watch(gymRestTimerProvider);
     final gymState = ref.watch(gymStateProvider);
-
-    //  When countdown finishes, notify ONCE, and respect settings
-    if (remainingSeconds == 0 && !_hasNotified) {
-      if (gymState.alertOnCountdownEnd) {
-        HapticFeedback.mediumImpact();
-
-        // Not that this only works on desktop platforms
-        SystemSound.play(SystemSoundType.alert);
-      }
-      setState(() {
-        _hasNotified = true;
+    final page = gymState.getSlotEntryPageByIndex();
+    final config = page?.setConfigData;
+    final minimum =
+        config?.restTime?.toInt() ??
+        (gymState.useCountdownBetweenSets ? gymState.countdownDuration.inSeconds : null);
+    final maximum = config?.maxRestTime?.toInt();
+    if (page?.type != SlotPageType.timer) {
+      _enteredPage = null;
+    } else if (_enteredPage != gymState.currentPage) {
+      _enteredPage = gymState.currentPage;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ref.read(gymStateProvider).currentPage == _enteredPage) {
+          timer.ensureStarted(minimum ?? widget._seconds);
+        }
       });
     }
 
-    return Column(
-      children: [
-        NavigationHeader(
-          AppLocalizations.of(context).pause,
-          widget._controller,
-        ),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                DateFormat('m:ss').format(displayTime),
-                style: Theme.of(
-                  context,
-                ).textTheme.displayLarge!.copyWith(color: Theme.of(context).colorScheme.primary),
+    return ListenableBuilder(
+      listenable: timer,
+      builder: (context, child) {
+        final displayTime = DateTime(2000, 1, 1).add(Duration(seconds: timer.remainingSeconds));
+        return Column(
+          children: [
+            NavigationHeader(
+              AppLocalizations.of(context).pause,
+              widget._controller,
+            ),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    DateFormat('m:ss').format(displayTime),
+                    style:
+                        Theme.of(
+                          context,
+                        ).textTheme.displayLarge!.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      IconButton(
+                        key: const ValueKey('rest-timer-minus'),
+                        tooltip: '-15s',
+                        onPressed: timer.endTime == null ? null : () => timer.adjust(-15),
+                        icon: const Icon(Icons.remove),
+                      ),
+                      IconButton(
+                        key: const ValueKey('rest-timer-plus'),
+                        tooltip: '+15s',
+                        onPressed: timer.endTime == null ? null : () => timer.adjust(15),
+                        icon: const Icon(Icons.add),
+                      ),
+                      IconButton(
+                        key: const ValueKey('rest-timer-min'),
+                        tooltip: minimum == null ? 'Reset to min' : 'Reset to ${minimum}s (min)',
+                        onPressed: minimum == null ? null : () => timer.resetTo(minimum),
+                        icon: const Icon(Icons.timer),
+                      ),
+                      IconButton(
+                        key: const ValueKey('rest-timer-max'),
+                        tooltip: maximum == null ? 'Reset to max' : 'Reset to ${maximum}s (max)',
+                        onPressed: maximum == null ? null : () => timer.resetTo(maximum),
+                        icon: const Icon(Icons.timer_outlined),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-        NavigationFooter(widget._controller),
-      ],
+            ),
+            NavigationFooter(widget._controller),
+          ],
+        );
+      },
     );
   }
 }

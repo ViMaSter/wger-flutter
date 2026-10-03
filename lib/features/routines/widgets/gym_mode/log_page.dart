@@ -22,6 +22,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:wger/core/consts.dart';
 import 'package:wger/core/formatting/formatting.dart';
 import 'package:wger/core/snackbar.dart';
+import 'package:wger/core/watch_companion.dart';
 import 'package:wger/core/widgets/core.dart';
 import 'package:wger/core/widgets/error.dart';
 import 'package:wger/features/exercises/models/exercise.dart';
@@ -38,11 +39,12 @@ import 'package:wger/features/routines/validators.dart';
 import 'package:wger/features/routines/widgets/forms/repetitions.dart';
 import 'package:wger/features/routines/widgets/forms/rir.dart';
 import 'package:wger/features/routines/widgets/forms/weight.dart';
+import 'package:wger/features/routines/widgets/gym_mode/linkified_comment.dart';
 import 'package:wger/features/routines/widgets/gym_mode/navigation.dart';
 import 'package:wger/features/routines/widgets/plate_calculator.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
-class LogPage extends ConsumerWidget {
+class LogPage extends ConsumerStatefulWidget {
   final _logger = Logger('LogPage');
 
   final PageController _controller;
@@ -51,28 +53,86 @@ class LogPage extends ConsumerWidget {
   /// content instead of whatever the globally-current page happens to be.
   final String slotUuid;
 
-  LogPage(this._controller, this.slotUuid);
+  final Future<void> Function(Map<String, dynamic>) watchUpdate;
+
+  LogPage(this._controller, this.slotUuid, {this.watchUpdate = sendWatchUpdate});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LogPage> createState() => _LogPageState();
+}
+
+class _LogPageState extends ConsumerState<LogPage> {
+  Map<String, dynamic>? _lastExerciseUpdate;
+
+  @override
+  void didUpdateWidget(LogPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.slotUuid != widget.slotUuid || oldWidget.watchUpdate != widget.watchUpdate) {
+      _lastExerciseUpdate = null;
+    }
+  }
+
+  void _syncWatch(Map<String, dynamic> exercise, int pageIndex) {
+    if (ref.read(gymStateProvider).currentPage != pageIndex) {
+      _lastExerciseUpdate = null;
+      return;
+    }
+    if (_lastExerciseUpdate != null &&
+        exercise.entries.every((entry) => _lastExerciseUpdate![entry.key] == entry.value)) {
+      return;
+    }
+    _lastExerciseUpdate = exercise;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          ref.read(gymStateProvider).currentPage != pageIndex ||
+          !identical(_lastExerciseUpdate, exercise)) {
+        return;
+      }
+      try {
+        await widget.watchUpdate({'exercise': exercise});
+      } catch (error, stackTrace) {
+        widget._logger.warning('Could not update paired watch', error, stackTrace);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final gymState = ref.watch(gymStateProvider);
     final languageCode = Localizations.localeOf(context).languageCode;
 
-    final slotEntryPage = gymState.getSlotPageByUUID(slotUuid);
+    final slotEntryPage = gymState.getSlotPageByUUID(widget.slotUuid);
     if (slotEntryPage == null) {
-      _logger.info('getSlotPageByUUID for $slotUuid returned null, showing empty container.');
+      widget._logger.info(
+        'getSlotPageByUUID for ${widget.slotUuid} returned null, showing empty container.',
+      );
       return Container();
     }
 
     final page = gymState.getPageByIndex(slotEntryPage.pageIndex);
     if (page == null) {
-      _logger.info(
+      widget._logger.info(
         'getPageByIndex for ${slotEntryPage.pageIndex} returned null, showing empty container.',
       );
       return Container();
     }
     final setConfigData = slotEntryPage.setConfigData!;
+    final logPages = page.slotPages.where((entry) => entry.type == SlotPageType.log).toList();
+    final currentSetCount = logPages.indexWhere((entry) => entry.uuid == widget.slotUuid) + 1;
+    final totalSetCount = logPages.length;
+    final exerciseName = setConfigData.exercise.getTranslation(languageCode).name;
+    final log = ref.watch(gymLogProvider);
+    final isCurrentLog =
+        gymState.currentPage == slotEntryPage.pageIndex &&
+        log?.exerciseId == setConfigData.exerciseId;
+    _syncWatch({
+      'exerciseName': exerciseName,
+      'repetitions': isCurrentLog ? log?.repetitions : setConfigData.repetitions,
+      'weight': isCurrentLog ? log?.weight : setConfigData.weight,
+      'currentSetCount': currentSetCount,
+      'totalSetCount': totalSetCount,
+    }, slotEntryPage.pageIndex);
 
     // Past logs come straight from the local DB (not the gym-mode routine
     // snapshot) so a set logged during this workout shows up right away.
@@ -93,8 +153,8 @@ class LogPage extends ConsumerWidget {
     return Column(
       children: [
         NavigationHeader(
-          setConfigData.exercise.getTranslation(languageCode).name,
-          _controller,
+          exerciseName,
+          widget._controller,
         ),
 
         Container(
@@ -125,7 +185,7 @@ class LogPage extends ConsumerWidget {
                   ],
                 ),
                 Text(
-                  '${slotEntryPage.setIndex + 1} / ${page.slotPages.where((e) => e.type == SlotPageType.log).length}',
+                  '$currentSetCount / $totalSetCount',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -136,8 +196,11 @@ class LogPage extends ConsumerWidget {
           ),
         ),
         if (setConfigData.exercise.showPlateCalculator) const LogsPlatesWidget(),
-        if (slotEntryPage.setConfigData!.comment.isNotEmpty)
-          Text(slotEntryPage.setConfigData!.comment, textAlign: TextAlign.center),
+        if (setConfigData.comment.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: LinkifiedComment(setConfigData.comment, textAlign: TextAlign.center),
+          ),
         const SizedBox(height: 10),
 
         // Overriding the log scope from here is handled in a follow-up, the
@@ -153,14 +216,14 @@ class LogPage extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: LogFormWidget(
-                controller: _controller,
+                controller: widget._controller,
                 configData: setConfigData,
                 key: ValueKey('log-form-${slotEntryPage.uuid}'),
               ),
             ),
           ),
         ),
-        NavigationFooter(_controller),
+        NavigationFooter(widget._controller),
       ],
     );
   }
@@ -168,7 +231,7 @@ class LogPage extends ConsumerWidget {
   /// Renders the previous logs for this exercise
   Widget _buildPastLogs(AsyncValue<List<Log>> pastLogs, Exercise exercise) {
     if (pastLogs.hasError) {
-      _logger.warning('Could not load past logs', pastLogs.error, pastLogs.stackTrace);
+      widget._logger.warning('Could not load past logs', pastLogs.error, pastLogs.stackTrace);
       // Scroll-wrap so the indicator fits this slim slot instead of overflowing.
       return SingleChildScrollView(
         child: StreamErrorIndicator(pastLogs.error!, stacktrace: pastLogs.stackTrace),
