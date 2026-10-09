@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
@@ -118,6 +119,21 @@ class _LogPageState extends ConsumerState<LogPage> {
       return Container();
     }
     final setConfigData = slotEntryPage.setConfigData!;
+    final dayData = gymState.routine.dayDataGym.firstWhereOrNull(
+      (data) => data.day?.id == gymState.dayId && data.iteration == gymState.iteration,
+    );
+    final slotComment = dayData?.slots
+        .firstWhereOrNull(
+          (slot) => slot.setConfigs.any(
+            (config) => config.slotEntryId == setConfigData.slotEntryId,
+          ),
+        )
+        ?.comment;
+    final comments = [slotComment?.trim(), setConfigData.comment.trim()]
+        .whereType<String>()
+        .where((comment) => comment.isNotEmpty)
+        .toSet()
+        .join('\n');
     final logPages = page.slotPages.where((entry) => entry.type == SlotPageType.log).toList();
     final currentSetCount = logPages.indexWhere((entry) => entry.uuid == widget.slotUuid) + 1;
     final totalSetCount = logPages.length;
@@ -196,10 +212,10 @@ class _LogPageState extends ConsumerState<LogPage> {
           ),
         ),
         if (setConfigData.exercise.showPlateCalculator) const LogsPlatesWidget(),
-        if (setConfigData.comment.trim().isNotEmpty)
+        if (comments.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: LinkifiedComment(setConfigData.comment, textAlign: TextAlign.center),
+            child: LinkifiedComment(comments, textAlign: TextAlign.center),
           ),
         const SizedBox(height: 10),
 

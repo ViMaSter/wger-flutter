@@ -167,6 +167,18 @@ void main() {
       });
     });
 
+    testWidgets('shows the routine slot comment on the phone log page only', (tester) async {
+      const comment = 'Warm up: 4 Sets - https://www.youtube.com/watch?v=htDXu61MPio';
+      final routine = testdata.getTestRoutine();
+      routine.dayDataGym.first.slots.first.comment = comment;
+      seedLogPage(routine);
+      await pumpLogPage(tester);
+
+      final linkifiedComment = tester.widget<LinkifiedComment>(find.byType(LinkifiedComment));
+      expect(linkifiedComment.text, comment);
+      expect((watchUpdates.single['exercise'] as Map).containsKey('comment'), isFalse);
+    });
+
     testWidgets('prebuilt inactive log page sends nothing until it becomes current', (
       tester,
     ) async {
