@@ -25,6 +25,7 @@ import 'package:wger/features/exercises/models/category.dart';
 import 'package:wger/features/exercises/models/equipment.dart';
 import 'package:wger/features/exercises/models/exercise.dart';
 import 'package:wger/features/exercises/models/muscle.dart';
+import 'package:wger/features/exercises/models/translation.dart';
 import 'package:wger/features/exercises/providers/exercise_repository.dart';
 import 'package:wger/features/exercises/providers/exercises_notifier.dart';
 import 'package:wger/features/exercises/widgets/exercises.dart';
@@ -48,7 +49,7 @@ void main() {
     ).thenAnswer((_) => Stream.value(ExerciseState(const <Exercise>[])));
   });
 
-  Widget createHomeScreen({locale = 'en'}) {
+  Widget createHomeScreen({locale = 'en', Exercise? exercise}) {
     return ProviderScope(
       overrides: [
         exerciseRepositoryProvider.overrideWithValue(mockExerciseRepo),
@@ -65,7 +66,7 @@ void main() {
         localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         navigatorKey: GlobalKey<NavigatorState>(),
-        home: Scaffold(body: ExerciseDetail(getTestExercises()[0])),
+        home: Scaffold(body: ExerciseDetail(exercise ?? getTestExercises()[0])),
       ),
     );
   }
@@ -93,5 +94,21 @@ void main() {
     expect(find.text('Description'), findsOneWidget, reason: 'Description header');
     expect(find.text('add clever text'), findsOneWidget, reason: 'Description');
     expect(find.text('Variations'), findsNothing);
+  });
+
+  testWidgets('description falls back to English when the selected translation is blank', (
+    WidgetTester tester,
+  ) async {
+    final exercise = testBenchPress.copyWith(
+      translations: [
+        const Translation(name: 'Bankdrücken', description: '', language: testGerman),
+        benchPressEn,
+      ],
+    );
+
+    await tester.pumpWidget(createHomeScreen(locale: 'de', exercise: exercise));
+    await tester.pumpAndSettle();
+
+    expect(find.text('add clever text'), findsOneWidget);
   });
 }

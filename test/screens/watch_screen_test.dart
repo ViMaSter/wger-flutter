@@ -227,6 +227,49 @@ void main() {
     await tester.pump();
   });
 
+  for (final diameter in [180.0, 192.0]) {
+    testWidgets('exercise and rest timer fit a round $diameter watch face', (tester) async {
+      tester.view.physicalSize = Size.square(diameter);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      initialContext = {
+        'exercise': {
+          'exerciseName': 'Bulgarian split squats right',
+          'repetitions': 3,
+          'weight': 8,
+          'currentSetCount': 2,
+          'totalSetCount': 5,
+        },
+        'timer': {'endTimeISO8601': now.add(const Duration(seconds: 65)).toIso8601String()},
+      };
+      await mount(tester);
+      expect(find.byType(Scrollable), findsNothing);
+      final center = Offset(diameter / 2, diameter / 2);
+      for (final text in [
+        'Bulgarian split squats right',
+        '3 x 8 kg',
+        'Set: 2/5',
+        'Rest Time',
+        '1:05',
+      ]) {
+        final finder = find.text(text);
+        expect(finder, findsOneWidget);
+        for (final corner in [
+          tester.getTopLeft(finder),
+          tester.getTopRight(finder),
+          tester.getBottomLeft(finder),
+          tester.getBottomRight(finder),
+        ]) {
+          expect((corner - center).distance, lessThanOrEqualTo(diameter / 2), reason: text);
+        }
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+    });
+  }
+
   testWidgets('countdown cues and distinct expiry occur once across duplicate updates', (
     tester,
   ) async {

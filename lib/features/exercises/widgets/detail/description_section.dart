@@ -18,13 +18,12 @@
 
 import 'package:flutter_html/flutter_html.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:wger/features/exercises/models/translation.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
 class DescriptionSection extends StatelessWidget {
-  final Translation translation;
+  final String description;
 
-  const DescriptionSection({super.key, required this.translation});
+  const DescriptionSection({super.key, required this.description});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +34,7 @@ class DescriptionSection extends StatelessWidget {
           AppLocalizations.of(context).description,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        Html(data: translation.description),
+        Html(data: description),
       ],
     );
   }

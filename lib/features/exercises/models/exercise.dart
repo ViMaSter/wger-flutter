@@ -138,6 +138,28 @@ class Exercise extends Equatable {
     );
   }
 
+  String getDescription(String language) {
+    final preferred = getTranslation(language);
+    if (preferred.description.trim().isNotEmpty) {
+      return preferred.description;
+    }
+
+    for (final translation in translations) {
+      if (translation.language.shortName == LANGUAGE_SHORT_ENGLISH &&
+          translation.description.trim().isNotEmpty) {
+        return translation.description;
+      }
+    }
+
+    for (final translation in translations) {
+      if (translation.description.trim().isNotEmpty) {
+        return translation.description;
+      }
+    }
+
+    return preferred.description;
+  }
+
   ExerciseImage? get getMainImage {
     return images.firstWhereOrNull((image) => image.isMain);
   }

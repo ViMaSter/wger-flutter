@@ -52,7 +52,9 @@ class ExerciseDetail extends StatelessWidget {
           AliasesSection(translation: translation),
           VideosSection(exercise: _exercise),
           ImagesSection(exercise: _exercise),
-          DescriptionSection(translation: translation),
+          DescriptionSection(
+            description: _exercise.getDescription(Localizations.localeOf(context).languageCode),
+          ),
           NotesSection(translation: translation),
           MusclesSection(exercise: _exercise),
           VariationsSection(exercise: _exercise),

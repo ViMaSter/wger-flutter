@@ -237,55 +237,63 @@ class _WatchScreenState extends State<WatchScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: (constraints.maxHeight - 48).clamp(0, double.infinity),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!hasExercise && !hasTimer)
-                      const Text(
-                        'No data (yet)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    if (hasExercise) ...[
-                      const Icon(Icons.fitness_center, color: Colors.white70, size: 20),
-                      const SizedBox(height: 6),
-                      Text(
-                        _exercise['exerciseName'] ?? '-',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${_exercise['repetitions'] ?? '-'} x ${_exercise['weight'] ?? '-'} kg',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Set: ${_exercise['currentSetCount'] ?? '-'}/${_exercise['totalSetCount'] ?? '-'}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                    if (hasTimer) ...[
-                      const SizedBox(height: 12),
-                      const Text('Rest Time', style: TextStyle(color: Colors.white70)),
-                      Text(
-                        _remainingTimeText!,
-                        style: const TextStyle(color: Colors.white, fontSize: 28),
-                      ),
-                    ],
-                  ],
+            final contentWidth = constraints.maxWidth * 0.7;
+            return Center(
+              child: SizedBox(
+                width: contentWidth,
+                height: constraints.maxHeight * 0.7,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: contentWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!hasExercise && !hasTimer)
+                          const Text(
+                            'No data (yet)',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        if (hasExercise) ...[
+                          const Icon(Icons.fitness_center, color: Colors.white70, size: 16),
+                          const SizedBox(height: 4),
+                          Text(
+                            _exercise['exerciseName'] ?? '-',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_exercise['repetitions'] ?? '-'} x ${_exercise['weight'] ?? '-'} kg',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Set: ${_exercise['currentSetCount'] ?? '-'}/${_exercise['totalSetCount'] ?? '-'}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
+                        if (hasTimer) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Rest Time',
+                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          Text(
+                            _remainingTimeText!,
+                            style: const TextStyle(color: Colors.white, fontSize: 28),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             );
