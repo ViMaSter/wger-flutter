@@ -127,6 +127,7 @@ void main() {
         expect(timer.remainingSeconds, 50);
         expect(updates.last['timer'], {'endTimeISO8601': resetDeadline!.toIso8601String()});
         await tester.pumpWidget(const SizedBox());
+        disposeContainer();
       },
     );
   });
@@ -149,6 +150,7 @@ void main() {
     await pumpTimer(tester);
     expect(timer.endTime, isNotNull);
     await tester.pumpWidget(const SizedBox());
+    disposeContainer();
   });
 
   testWidgets('elapsed rest timer also persists across remount', (tester) async {
@@ -162,6 +164,7 @@ void main() {
       await pumpTimer(tester, countdown: false);
       expect(find.text('0:15'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
+      disposeContainer();
     });
   });
 
@@ -179,6 +182,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('rest-timer-min')));
     expect(timer.endTime, isNotNull);
     await tester.pumpWidget(const SizedBox());
+    disposeContainer();
   });
 
   testWidgets('user countdown is fallback only, max without config is disabled', (tester) async {
@@ -192,6 +196,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('rest-timer-min')));
     expect(timer.remainingSeconds, 180);
     await tester.pumpWidget(const SizedBox());
+    disposeContainer();
   });
 
   test('page changes retain deadline, workout reset clears it without alerting', () {
