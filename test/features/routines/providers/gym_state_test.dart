@@ -734,6 +734,28 @@ void main() {
     });
   });
 
+  group('GymStateNotifier past log duplicates (fork)', () {
+    test('lists every set by default, ignoring the stored upstream default', () async {
+      // Upstream saved "hide duplicates" under this key with any other setting
+      await PreferenceHelper.asyncPref.setBool('showDistinctLogsPrefs', true);
+
+      await notifier.loadPrefs();
+
+      expect(notifier.state.showDistinctLogs, isFalse);
+    });
+
+    test('keeps hiding duplicates once switched on', () async {
+      notifier.setShowDistinctLogs(true);
+      await pumpEventQueue();
+      expect(await PreferenceHelper.asyncPref.getBool(PREFS_SHOW_DISTINCT_LOGS), isTrue);
+
+      notifier.state = notifier.state.copyWith(showDistinctLogs: false);
+      await notifier.loadPrefs();
+
+      expect(notifier.state.showDistinctLogs, isTrue);
+    });
+  });
+
   group('GymStateNotifier notification settings', () {
     test('Both are on without stored preferences', () async {
       await notifier.loadPrefs();

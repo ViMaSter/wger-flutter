@@ -399,6 +399,37 @@ void main() {
       expect(find.byType(SnackBar), findsOneWidget);
     });
 
+    testWidgets('lists every past set, also repeated repetition/weight combinations', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final exerciseId = testdata.getTestRoutine().logs.first.exerciseId;
+      final template = asDriftLog(testdata.getTestRoutine().filterLogsByExercise(exerciseId).first);
+      final repeated = [
+        for (var i = 0; i < 5; i++) asDriftLog(template)..id = 'repeated-$i',
+      ];
+      when(
+        mockWorkoutLogRepo.watchLogsByExerciseDrift(
+          routineId: anyNamed('routineId'),
+          exerciseId: anyNamed('exerciseId'),
+        ),
+      ).thenAnswer((_) => Stream.value(repeated));
+
+      seedLogPage(testdata.getTestRoutine());
+      expect(container.read(gymStateProvider).showDistinctLogs, isFalse);
+      await pumpLogPage(tester);
+
+      expect(find.byIcon(Icons.copy), findsNWidgets(5));
+
+      // "Hide duplicate values" still condenses them to one
+      container.read(gymStateProvider.notifier).setShowDistinctLogs(true);
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+    });
+
     testWidgets('shows an error indicator when past logs fail to load', (tester) async {
       // Error via a stream event (not a build throw), so riverpod surfaces it
       // as state instead of scheduling a retry timer.

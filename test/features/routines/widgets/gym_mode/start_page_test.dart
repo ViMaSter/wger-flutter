@@ -272,7 +272,7 @@ void main() {
 
     final notifier = container.read(gymStateProvider.notifier);
     expect(notifier.state.logScopeWeeks, isNull, reason: 'Defaults to the current routine');
-    expect(notifier.state.showDistinctLogs, isTrue);
+    expect(notifier.state.showDistinctLogs, isFalse, reason: 'Every past set is listed');
 
     // The tiles sit at the bottom of the scrollable options card
     final scopeDropdown = find.byKey(const ValueKey('log-scope-dropdown'));
@@ -303,7 +303,7 @@ void main() {
     await tester.tap(distinctSwitch);
     await tester.pump();
 
-    expect(notifier.state.showDistinctLogs, isFalse);
+    expect(notifier.state.showDistinctLogs, isTrue);
   });
 
   group('Exact alarm hint', () {

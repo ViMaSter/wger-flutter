@@ -33,7 +33,9 @@ const PREFS_ALERT_COUNTDOWN = 'alertCountdownPrefs';
 const PREFS_USE_COUNTDOWN_BETWEEN_SETS = 'useCountdownBetweenSetsPrefs';
 const PREFS_COUNTDOWN_DURATION = 'countdownDurationSecondsPrefs';
 const PREFS_LOG_SCOPE_WEEKS = 'logScopeWeeksPrefs';
-const PREFS_SHOW_DISTINCT_LOGS = 'showDistinctLogsPrefs';
+// Fork: own key, so the upstream default (hide duplicates) saved with any
+// other gym mode setting doesn't carry over. The fork lists every past set.
+const PREFS_SHOW_DISTINCT_LOGS = 'showDistinctLogsAllSetsPrefs';
 const PREFS_SHOW_WORKOUT_DURATION = 'showWorkoutDurationPrefs';
 const PREFS_WORKOUT_NOTIFICATION = 'workoutNotificationPrefs';
 const PREFS_STICKY_SET_VALUES = 'stickySetValuesPrefs';
@@ -178,6 +180,9 @@ class GymModeState {
   final bool useCountdownBetweenSets;
   final Duration countdownDuration;
   final int? logScopeWeeks;
+
+  /// Whether past logs hide repeated repetition/weight combinations. Off by
+  /// default in the fork, so every set done before is listed.
   final bool showDistinctLogs;
   final bool showWorkoutDuration;
 
@@ -212,7 +217,7 @@ class GymModeState {
     this.useCountdownBetweenSets = false,
     this.countdownDuration = const Duration(seconds: DEFAULT_COUNTDOWN_DURATION),
     this.logScopeWeeks,
-    this.showDistinctLogs = true,
+    this.showDistinctLogs = false,
     this.showWorkoutDuration = true,
     this.showWorkoutNotification = true,
     this.stickySetValues = false,

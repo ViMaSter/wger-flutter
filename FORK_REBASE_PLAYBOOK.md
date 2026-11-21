@@ -39,6 +39,7 @@ Copy and send this request when starting an update:
 ### Gym log and comments
 
 - Show current set / total sets in the gym-mode log header.
+- List every past set on the gym-mode log page, including repeated repetition/weight combinations. Upstream hides duplicates by default ("Hide duplicate values"); the fork defaults it to off and stores it under its own key (`showDistinctLogsAllSetsPrefs` in `gym_state.dart`) so upstream's saved default doesn't carry over. Keep the switch working.
 - Make HTTP(S) links in the gym-mode exercise comment tappable and open them externally. Keep ordinary comment text readable and handle invalid/unlaunchable URLs without crashing.
 - Relevant code: `lib/features/routines/widgets/gym_mode/log_page.dart`, `lib/features/routines/widgets/gym_mode/linkified_comment.dart`.
 
