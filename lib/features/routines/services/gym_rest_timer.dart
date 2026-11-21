@@ -112,7 +112,9 @@ class GymRestTimer {
   }
 
   void _alert() {
-    if (alertsEnabled()) {
+    final enabled = alertsEnabled();
+    _logger.fine('Rest ended, ${enabled ? 'alerting' : 'alert off or in background'}');
+    if (enabled) {
       unawaited(_attempt(alert));
     }
   }

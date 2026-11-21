@@ -61,10 +61,29 @@ changed.
 - Full `flutter test`: all 2,232 tests pass, including goldens.
 - `flutter build apk --debug` for the Android/Gradle side.
 
+Re-checked after upgrading the Homebrew Flutter to 3.50.1 (Dart 3.14.0): all
+2,232 tests pass; `flutter analyze` reports only 4 upstream deprecation infos
+that are new with this SDK (legacy Material scope and generated localizations),
+none in fork code. `pubspec.lock` was kept as resolved for upstream CI's 3.47.9.
+
+## Emulator Check
+
+Debug build (`de.wger.flutter.debug`) on AVD `notes35a` (API 35, arm64),
+signed in with the debug build's prefilled demo account on dev.wger.de. No sets
+were saved.
+
+- Normal phone UI (not the watch screen), no crashes in the crash buffer.
+- Gym mode: log page shows set count, workout progress is restored on reopen.
+- Countdown with the -15s/+15s/min/max row, max disabled without max rest.
+- +15s moved the countdown; it kept running across swiping away and back.
+- Shortening and leaving the page: the service logged "Rest ended, alerting"
+  on time while the log page was shown.
+
 ## Not Verified
 
+- Physical vibration: the emulator's vibration history records nothing, so the
+  haptic itself could not be observed.
 - No signed release build: only the encrypted signing files are present
   (`key.properties` not decrypted).
-- No Android device was attached; no install, Gym Mode, paired-watch or haptics
-  check on hardware.
+- No paired watch; watch sync is covered by automated tests only.
 - Intermediate commits are not individually build-checked; only the final tree.
