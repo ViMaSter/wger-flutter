@@ -127,11 +127,10 @@ class _LogPageState extends ConsumerState<LogPage> {
           ),
         )
         ?.comment;
-    final comments = [slotComment?.trim(), setConfigData.comment.trim()]
-        .whereType<String>()
-        .where((comment) => comment.isNotEmpty)
-        .toSet()
-        .join('\n');
+    final comments = [
+      slotComment?.trim(),
+      setConfigData.comment.trim(),
+    ].whereType<String>().where((comment) => comment.isNotEmpty).toSet().join('\n');
     final logPages = page.slotPages.where((entry) => entry.type == SlotPageType.log).toList();
     final currentSetCount = logPages.indexWhere((entry) => entry.key == widget.slotKey) + 1;
     final totalSetCount = logPages.length;

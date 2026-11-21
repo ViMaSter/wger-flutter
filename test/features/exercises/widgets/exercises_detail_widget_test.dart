@@ -109,6 +109,6 @@ void main() {
     await tester.pumpWidget(createHomeScreen(locale: 'de', exercise: exercise));
     await tester.pumpAndSettle();
 
-    expect(find.text('add clever text'), findsOneWidget);
+    expect(find.text('add clever text', findRichText: true), findsOneWidget);
   });
 }

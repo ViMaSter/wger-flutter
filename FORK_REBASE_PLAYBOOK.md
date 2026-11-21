@@ -23,9 +23,9 @@ Copy and send this request when starting an update:
 
 - The intended watch screen displays the active exercise, repetitions, weight, current/total set count, and rest countdown.
 - The phone sends workout and timer state over `watch_connectivity`; timer updates should be merged with existing watch context rather than erasing unrelated data.
-- Detect Wear OS devices and route them to the watch UI. **Current gap:** `WatchScreen` exists in `lib/screens/watch_screen.dart`, but current `lib/main.dart` does not reference it, so the watch UI is presently unreachable. Rebase work should wire this up and test both watch and ordinary-phone routing.
+- Detect Wear OS devices and route them to the watch UI (`lib/main.dart` → `lib/screens/watch_screen.dart`, detection in `lib/core/watch_companion.dart`). Keep tests for both watch and ordinary-phone routing.
 - Keep the watch awake while in the workout screen and provide countdown haptics, including a distinct expiry vibration.
-- Relevant code: `lib/main.dart`, `lib/screens/watch_screen.dart`, `lib/screens/auth_screen.dart`, `lib/widgets/routines/gym_mode/log_page.dart`, `lib/widgets/routines/gym_mode/timer.dart`, `android/app/build.gradle`, and `android/app/src/main/AndroidManifest.xml`.
+- Relevant code: `lib/main.dart`, `lib/core/watch_companion.dart`, `lib/screens/watch_screen.dart`, `lib/features/routines/widgets/gym_mode/log_page.dart`, `lib/features/routines/services/gym_rest_timer.dart`, `android/app/build.gradle`, and `android/app/src/main/AndroidManifest.xml`.
 
 ### Gym-mode rest timer
 
@@ -33,20 +33,21 @@ Copy and send this request when starting an update:
 - Provide `-15s`, `+15s`, and reset-to-configured-minimum/maximum controls.
 - On expiry, notify/vibrate once, tolerate devices without vibration support, and clear expired timer state so a later timer can start normally.
 - Send timer changes to the paired watch.
-- Relevant code: `lib/widgets/routines/gym_mode/timer.dart` and `lib/providers/gym_state.dart`.
+- Upstream owns the rest countdown: it is stored per timer page as `timerStartedAt` in the gym state (`restEndsAt`, `extendRest`), and upstream's background notification alerts from it. The fork must not keep a second clock. The fork adds `resetRest` to the notifier, the control row in the timer widget, and `GymRestTimer` (`gymRestTimerProvider`, read when gym mode opens), which follows the gym state to sync the watch and give the in-app expiry alert (foreground only, also from other pages).
+- Relevant code: `lib/features/routines/widgets/gym_mode/timer.dart`, `lib/features/routines/services/gym_rest_timer.dart`, `lib/features/routines/providers/gym_rest_timer_provider.dart`, `lib/features/routines/providers/gym_state_notifier.dart`.
 
 ### Gym log and comments
 
 - Show current set / total sets in the gym-mode log header.
 - Make HTTP(S) links in the gym-mode exercise comment tappable and open them externally. Keep ordinary comment text readable and handle invalid/unlaunchable URLs without crashing.
-- Relevant code: `lib/widgets/routines/gym_mode/log_page.dart`.
+- Relevant code: `lib/features/routines/widgets/gym_mode/log_page.dart`, `lib/features/routines/widgets/gym_mode/linkified_comment.dart`.
 
 ### Routine-day presentation
 
 - Show a slot comment after its exercise/set rows, not before them.
 - Omit an empty day description rather than reserving an empty subtitle row; preserve the intended day-header alignment and spacing.
 - Preserve exercise and set grouping when adapting this layout to upstream's current routine widgets.
-- Relevant code: `lib/widgets/routines/day.dart`.
+- Relevant code: `lib/features/routines/widgets/day.dart`.
 
 ### Android requirements
 
@@ -59,9 +60,11 @@ Copy and send this request when starting an update:
 Run the existing focused Flutter tests:
 
 ```sh
-flutter test test/providers/gym_state_test.dart \
-  test/widgets/routines/gym_mode/log_page_test.dart \
-  test/routine/gym_mode/gym_mode_test.dart
+flutter test test/features/routines/providers/gym_state_test.dart \
+  test/features/routines/widgets/gym_mode/ \
+  test/features/routines/screens/gym_mode_test.dart \
+  test/features/routines/widgets/day_test.dart \
+  test/core/watch_companion_test.dart test/screens/
 ```
 
 Add focused tests if the behavior is not covered after the rebase:
@@ -72,22 +75,22 @@ Add focused tests if the behavior is not covered after the rebase:
 - **Linkified comment:** plain text remains plain; HTTP(S) is styled as a link and tapping requests an external launch; malformed or rejected launch is handled.
 - **Routine layout:** comment follows exercise rows; empty description creates no subtitle; grouping and spacing remain correct.
 
-Suggested locations are `test/screens/watch_screen_test.dart` and `test/widgets/routines/gym_mode/timer_test.dart`, following the existing `test/widgets/routines/gym_mode/` and `test/routine/gym_mode/` conventions. Avoid tests that require a real watch; mock the platform/channel boundary for automated coverage.
+Suggested locations are `test/screens/watch_screen_test.dart` and `test/features/routines/widgets/gym_mode/timer_test.dart`, following the existing `test/features/routines/` conventions. Avoid tests that require a real watch; mock the platform/channel boundary for automated coverage.
 
 ## Rebase Validation
 
-Run from the repository root after resolving conflicts:
+Run from the repository root after resolving conflicts. Use the Flutter version upstream CI pins in `.github/actions/flutter-common/action.yml` (an older local SDK may fail to resolve upstream's dependencies); a shallow clone of that tag outside the repo works without touching the installed SDK.
 
 ```sh
 flutter pub get
 dart format --output=none --set-exit-if-changed \
-  lib/main.dart lib/screens/watch_screen.dart \
-  lib/widgets/routines/gym_mode/log_page.dart \
-  lib/widgets/routines/gym_mode/timer.dart lib/widgets/routines/day.dart
+  lib test
 flutter analyze
-flutter test test/providers/gym_state_test.dart \
-  test/widgets/routines/gym_mode/log_page_test.dart \
-  test/routine/gym_mode/gym_mode_test.dart
+flutter test test/features/routines/providers/gym_state_test.dart \
+  test/features/routines/widgets/gym_mode/ \
+  test/features/routines/screens/gym_mode_test.dart \
+  test/features/routines/widgets/day_test.dart \
+  test/core/watch_companion_test.dart test/screens/
 flutter build apk --release
 ```
 
