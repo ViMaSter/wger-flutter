@@ -21,11 +21,16 @@ import 'package:material_ui/material_ui.dart';
 import 'package:wger/features/exercises/models/exercise.dart';
 import 'package:wger/features/routines/models/added_exercise.dart';
 import 'package:wger/features/routines/models/day_data.dart';
+import 'package:wger/features/routines/models/log.dart';
+import 'package:wger/features/routines/models/overload_option.dart';
 import 'package:wger/features/routines/models/page_progress.dart';
 import 'package:wger/features/routines/models/routine.dart';
 import 'package:wger/features/routines/models/set_config_data.dart';
 
 const DEFAULT_DURATION = Duration(hours: 5);
+
+/// Weight and repetitions entered for a set that isn't logged yet
+typedef RowDraft = ({num? weight, num? repetitions});
 
 const PREFS_SHOW_EXERCISES = 'showExercisePrefs';
 const PREFS_SHOW_TIMER = 'showTimerPrefs';
@@ -39,11 +44,17 @@ const PREFS_SHOW_DISTINCT_LOGS = 'showDistinctLogsAllSetsPrefs';
 const PREFS_SHOW_WORKOUT_DURATION = 'showWorkoutDurationPrefs';
 const PREFS_WORKOUT_NOTIFICATION = 'workoutNotificationPrefs';
 const PREFS_STICKY_SET_VALUES = 'stickySetValuesPrefs';
+const PREFS_PROGRESSIVE_OVERLOAD = 'progressiveOverloadPrefs';
+const PREFS_LIST_LAYOUT = 'gymModeListLayoutPrefs';
 
 /// In seconds
 const DEFAULT_COUNTDOWN_DURATION = 180;
 const MIN_COUNTDOWN_DURATION = 10;
 const MAX_COUNTDOWN_DURATION = 1800;
+
+/// Whether the log page with [key] is a planned set of the routine, unlike
+/// the pages of an exercise added during the workout
+bool isRequiredLogKey(String key) => key.startsWith('log:');
 
 enum PageType {
   start,
@@ -194,6 +205,28 @@ class GymModeState {
   /// of the planned ones. Disabled by default.
   final bool stickySetValues;
 
+  /// Whether gym mode suggests how to beat the last session of an exercise
+  /// and pre-fills its sets with the chosen option. Enabled by default.
+  final bool progressiveOverload;
+
+  /// The progressive overload option the user chose, by slot entry ID
+  final Map<int, OverloadOption> selectedOverload;
+
+  /// Slot entries whose overload option was chosen, also "as planned", so a
+  /// default doesn't replace that choice
+  final Set<int> overloadDecided;
+
+  /// Whether the whole workout is shown on one page, a set table per
+  /// exercise, instead of a page per set. Disabled by default.
+  final bool listLayout;
+
+  /// Sets logged beyond the planned ones in the list layout, by slot entry ID
+  final Map<int, List<Log>> extraLogs;
+
+  /// Values entered in the list layout for sets that aren't logged yet, by
+  /// row key, so they survive leaving the workout
+  final Map<String, RowDraft> rowDrafts;
+
   /// What happened on the pages so far, by page key. Kept apart from the pages
   /// so that recalculating them doesn't lose it.
   final Map<String, PageProgress> progress;
@@ -221,6 +254,12 @@ class GymModeState {
     this.showWorkoutDuration = true,
     this.showWorkoutNotification = true,
     this.stickySetValues = false,
+    this.progressiveOverload = true,
+    this.selectedOverload = const {},
+    this.overloadDecided = const {},
+    this.listLayout = true,
+    this.extraLogs = const {},
+    this.rowDrafts = const {},
     this.progress = const {},
     this.addedExercises = const [],
     int? dayId,
@@ -269,6 +308,12 @@ class GymModeState {
     bool? showWorkoutDuration,
     bool? showWorkoutNotification,
     bool? stickySetValues,
+    bool? progressiveOverload,
+    Map<int, OverloadOption>? selectedOverload,
+    Set<int>? overloadDecided,
+    bool? listLayout,
+    Map<int, List<Log>>? extraLogs,
+    Map<String, RowDraft>? rowDrafts,
     Map<String, PageProgress>? progress,
     List<AddedExercise>? addedExercises,
   }) {
@@ -295,6 +340,12 @@ class GymModeState {
       showWorkoutDuration: showWorkoutDuration ?? this.showWorkoutDuration,
       showWorkoutNotification: showWorkoutNotification ?? this.showWorkoutNotification,
       stickySetValues: stickySetValues ?? this.stickySetValues,
+      progressiveOverload: progressiveOverload ?? this.progressiveOverload,
+      selectedOverload: selectedOverload ?? this.selectedOverload,
+      overloadDecided: overloadDecided ?? this.overloadDecided,
+      listLayout: listLayout ?? this.listLayout,
+      extraLogs: extraLogs ?? this.extraLogs,
+      rowDrafts: rowDrafts ?? this.rowDrafts,
       progress: progress ?? this.progress,
       addedExercises: addedExercises ?? this.addedExercises,
     );
@@ -302,10 +353,102 @@ class GymModeState {
 
   PageProgress progressOf(String key) => progress[key] ?? const PageProgress();
 
+  /// The log pages of the workout grouped by slot entry, in the order the
+  /// slot entries first appear. One block per exercise in the list layout.
+  List<List<SlotPageEntry>> get logPagesBySlotEntry {
+    final blocks = <int, List<SlotPageEntry>>{};
+    for (final slotPage in pages.expand((p) => p.slotPages)) {
+      final slotEntryId = slotPage.setConfigData?.slotEntryId;
+      if (slotPage.type == SlotPageType.log && slotEntryId != null) {
+        blocks.putIfAbsent(slotEntryId, () => []).add(slotPage);
+      }
+    }
+    return blocks.values.toList();
+  }
+
+  /// The timer page right after the log page [logPage], null without one
+  SlotPageEntry? timerPageAfter(SlotPageEntry logPage) {
+    final next = getSlotEntryPageByIndex(logPage.pageIndex + 1);
+    return next?.type == SlotPageType.timer ? next : null;
+  }
+
+  /// The log pages of the slot entry of [slotPage], in order
+  List<SlotPageEntry> logPagesOfEntry(SlotPageEntry slotPage) => pages
+      .expand((p) => p.slotPages)
+      .where(
+        (p) =>
+            p.type == SlotPageType.log &&
+            p.setConfigData?.slotEntryId == slotPage.setConfigData?.slotEntryId,
+      )
+      .toList();
+
+  /// The set of the chosen progressive overload option for the log page
+  /// [slotPage], null without one. Once that page is logged, another set
+  /// logged on it is the one after it, e.g. the extra set of
+  /// [OverloadType.moreSets]. Beyond the option's sets, its last one repeats.
+  OverloadSet? overloadSetFor(SlotPageEntry slotPage) {
+    final slotEntryId = slotPage.setConfigData?.slotEntryId;
+    final option = slotEntryId == null ? null : selectedOverload[slotEntryId];
+    if (!progressiveOverload || option == null || option.sets.isEmpty) {
+      return null;
+    }
+
+    var index = logPagesOfEntry(slotPage).indexWhere((p) => p.key == slotPage.key);
+    if (index < 0) {
+      return null;
+    }
+    if (progressOf(slotPage.key).done) {
+      index++;
+    }
+    return option.sets[index.clamp(0, option.sets.length - 1)];
+  }
+
   /// Whether every set of [page] has been logged
   bool allLogsDone(PageEntry page) => page.slotPages
       .where((entry) => entry.type == SlotPageType.log)
       .every((entry) => progressOf(entry.key).done);
+
+  /// The planned log pages of the routine, in order. Exercises added during
+  /// the workout, extra sets and the extra sets of an overload option are
+  /// optional and never in here.
+  Iterable<SlotPageEntry> get requiredLogPages => pages
+      .expand((p) => p.slotPages)
+      .where((p) => p.type == SlotPageType.log && isRequiredLogKey(p.key));
+
+  /// Whether every planned set of the slot entry [slotEntryId] is logged
+  bool requiredDone(int slotEntryId) => requiredLogPages
+      .where((p) => p.setConfigData?.slotEntryId == slotEntryId)
+      .every((p) => progressOf(p.key).done);
+
+  /// Whether every planned set of the workout is logged
+  bool get allRequiredDone => requiredLogPages.every((p) => progressOf(p.key).done);
+
+  /// The slot entries with planned sets that aren't logged yet, in workout
+  /// order, with how many sets are planned and how many of those are logged.
+  /// Sets beyond the plan don't make up for missing ones.
+  List<({int slotEntryId, Exercise exercise, int planned, int logged})> get missingRequired {
+    final counts = <int, ({Exercise exercise, int planned, int logged})>{};
+    for (final page in requiredLogPages) {
+      final config = page.setConfigData!;
+      final current = counts[config.slotEntryId];
+      final done = progressOf(page.key).done ? 1 : 0;
+      counts[config.slotEntryId] = (
+        exercise: current?.exercise ?? config.exercise,
+        planned: (current?.planned ?? 0) + 1,
+        logged: (current?.logged ?? 0) + done,
+      );
+    }
+    return [
+      for (final MapEntry(key: slotEntryId, :value) in counts.entries)
+        if (value.logged < value.planned)
+          (
+            slotEntryId: slotEntryId,
+            exercise: value.exercise,
+            planned: value.planned,
+            logged: value.logged,
+          ),
+    ];
+  }
 
   /// The start of the workout as a [TimeOfDay], e.g. for the session form
   TimeOfDay get startTime => TimeOfDay.fromDateTime(workoutStart);

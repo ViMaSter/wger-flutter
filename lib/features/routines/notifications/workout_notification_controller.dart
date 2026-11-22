@@ -29,6 +29,7 @@ import 'package:wger/core/network/wger_base.dart';
 import 'package:wger/features/routines/models/log.dart';
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
+import 'package:wger/features/routines/notifications/workout_reminder.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_notifier.dart';
@@ -61,6 +62,12 @@ class WorkoutNotificationController {
   /// What the platform shows, null if unknown
   WorkoutNotificationTarget? _shown = WorkoutNotificationTarget.none;
   Future<void> _queue = Future.value();
+
+  /// The reminder scheduled on the platform, null if none
+  MissingEntriesReminder? _reminder;
+
+  /// Whether [_reminder] may differ from the platform, e.g. after a failure
+  bool _reminderUnknown = false;
 
   /// Earlier logs of the exercise of the set "log set" logs
   ProviderSubscription<AsyncValue<List<Log>>>? _recentLogsSubscription;
@@ -110,11 +117,38 @@ class WorkoutNotificationController {
     final target = inForeground || !_ref.read(gymModeVisibleProvider)
         ? WorkoutNotificationTarget.none
         : build(withControls: _service.supportsControls && state.showWorkoutNotification);
-    final labels = WorkoutNotificationLabels.of(i18n);
+    final labels = WorkoutNotificationLabels.of(i18n, restExtension: restExtensionFor(state));
     unawaited(_enqueue(() => _apply(target, labels)));
 
     // Also while nothing is shown, so the logs are there once something is
     _watchRecentLogs(state, build(withControls: true));
+
+    _updateReminder(state, i18n, locale.languageCode);
+  }
+
+  /// Keeps the reminder of missing entries in line with [state]. Unlike the
+  /// rest notifications also with gym mode on screen: the phone may be locked.
+  void _updateReminder(GymModeState state, AppLocalizations i18n, String languageCode) {
+    final reminder = buildMissingEntriesReminder(state, i18n, languageCode: languageCode);
+    if (reminder == _reminder && !_reminderUnknown) {
+      return;
+    }
+    _reminder = reminder;
+    _reminderUnknown = false;
+
+    // Overdue while the state changes means the user is in the app already
+    final due = reminder != null && reminder.at.isAfter(clock.now());
+    unawaited(
+      _enqueue(() async {
+        try {
+          await (due ? _service.scheduleReminder(reminder) : _service.cancelReminder());
+        } catch (_) {
+          // Unknown what the platform has now, the next update tries again
+          _reminderUnknown = true;
+          rethrow;
+        }
+      }),
+    );
   }
 
   /// Follows the earlier logs of the set the notification can log
@@ -151,6 +185,7 @@ class WorkoutNotificationController {
   /// have removed the notification on its own
   void refresh() {
     unawaited(_enqueue(() async => _shown = null));
+    _reminderUnknown = true;
     update();
   }
 
@@ -223,7 +258,7 @@ class WorkoutNotificationController {
             }
           case WORKOUT_NOTIFICATION_ACTION_EXTEND_REST:
             if (state.getSlotEntryPageByIndex()?.key == payload.restSlotKey) {
-              notifier.extendRest(REST_EXTENSION);
+              notifier.extendRest(restExtensionFor(state));
             }
         }
       } catch (e) {

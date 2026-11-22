@@ -86,6 +86,95 @@ class WorkoutLogRepository {
     return row == null ? null : _readWithUnits(row);
   }
 
+  /// The sets of the last session of an exercise that ended before [before],
+  /// oldest first, with their units. Empty if there is none.
+  ///
+  /// The session is the one of the newest log before [before], logs without a
+  /// session are grouped by calendar day instead.
+  Future<List<Log>> getLastSessionLogsByExercise(
+    int exerciseId, {
+    required DateTime before,
+  }) async {
+    final latestQuery = _db.select(_db.workoutLogTable)
+      ..where((t) => t.exerciseId.equals(exerciseId) & t.date.isSmallerThanValue(before))
+      ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
+      ..limit(1);
+    final latest = await latestQuery.getSingleOrNull();
+    if (latest == null) {
+      return [];
+    }
+
+    var condition =
+        _db.workoutLogTable.exerciseId.equals(exerciseId) &
+        _db.workoutLogTable.date.isSmallerThanValue(before);
+    if (latest.sessionId != null) {
+      condition &= _db.workoutLogTable.sessionId.equals(latest.sessionId!);
+    } else {
+      final localDate = latest.date.toLocal();
+      final dayStart = DateTime(localDate.year, localDate.month, localDate.day);
+      final nextDay = DateTime(localDate.year, localDate.month, localDate.day + 1);
+      condition &=
+          _db.workoutLogTable.sessionId.isNull() &
+          _db.workoutLogTable.date.isBiggerOrEqualValue(dayStart) &
+          _db.workoutLogTable.date.isSmallerThanValue(nextDay);
+    }
+
+    final query = _selectWithUnits()
+      ..where(condition)
+      ..orderBy([OrderingTerm(expression: _db.workoutLogTable.date)]);
+    return (await query.get()).map(_readWithUnits).toList();
+  }
+
+  /// The distinct weights above zero ever logged for an exercise, ascending.
+  ///
+  /// With [weightUnitId] only the logs in that unit, so kg and lb weights
+  /// don't mix. Logs store two decimals, so 1.875 shows up as 1.87 or 1.88.
+  Future<List<num>> getDistinctWeightsByExercise(int exerciseId, {int? weightUnitId}) async {
+    final weight = _db.workoutLogTable.weight;
+    var condition = _db.workoutLogTable.exerciseId.equals(exerciseId) & weight.isBiggerThanValue(0);
+    if (weightUnitId != null) {
+      condition &= _db.workoutLogTable.weightUnitId.equals(weightUnitId);
+    }
+
+    final query = _db.selectOnly(_db.workoutLogTable, distinct: true)
+      ..addColumns([weight])
+      ..where(condition)
+      ..orderBy([OrderingTerm(expression: weight)]);
+    return (await query.get()).map((row) => row.read(weight)).nonNulls.toList();
+  }
+
+  /// Writes those of [logs] again whose rows are gone, keeping their IDs so
+  /// the server treats a repeat as the same set, and returns them.
+  ///
+  /// Meant for after the server confirmed the local data (see
+  /// `waitForServerConfirmation`): a row missing then is one the server
+  /// doesn't have, e.g. an upload it refused. A session that is gone too is
+  /// replaced by the one for the log's day.
+  Future<List<Log>> resubmitMissing(List<Log> logs) async {
+    final ids = logs.map((log) => log.id).nonNulls.toList();
+    if (ids.isEmpty) {
+      return [];
+    }
+    final present = (await getLogsByIds(ids)).map((log) => log.id).toSet();
+    final missing = logs.where((log) => log.id != null && !present.contains(log.id)).toList();
+
+    for (final log in missing) {
+      final copy = log.copyWith();
+      final sessionId = copy.sessionId;
+      if (sessionId != null) {
+        final session = await (_db.select(
+          _db.workoutSessionTable,
+        )..where((t) => t.id.equals(sessionId))).getSingleOrNull();
+        if (session == null) {
+          copy.sessionId = null;
+        }
+      }
+      await addLocalDrift(copy);
+      _logger.info('Sent the logged set ${log.id} again, the server did not have it');
+    }
+    return missing;
+  }
+
   /// The logs with one of the [ids] that exist locally, with their units
   Future<List<Log>> getLogsByIds(List<String> ids) async {
     final query = _selectWithUnits()..where(_db.workoutLogTable.id.isIn(ids));

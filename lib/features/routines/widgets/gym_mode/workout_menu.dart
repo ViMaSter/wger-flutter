@@ -71,8 +71,9 @@ class NavigationTab extends ConsumerWidget {
       child: Column(
         children: [
           ...state.pages.where((pageEntry) => pageEntry.type == PageType.set).map((page) {
+            final done = _plannedSetsDone(state, page);
             return ListTile(
-              leading: state.allLogsDone(page) ? const Icon(Icons.check) : null,
+              leading: done ? const Icon(Icons.check) : null,
               title: Text(
                 page.exercises
                     .map(
@@ -83,9 +84,7 @@ class NavigationTab extends ConsumerWidget {
                     .toList()
                     .join('\n'),
                 style: TextStyle(
-                  decoration: state.allLogsDone(page)
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
+                  decoration: done ? TextDecoration.lineThrough : TextDecoration.none,
                 ),
               ),
               trailing: const Icon(Icons.chevron_right),
@@ -103,6 +102,19 @@ class NavigationTab extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Whether the planned sets of [page] are logged. Sets beyond the plan don't
+/// count; an exercise added during the workout has no planned sets, it is
+/// done once all of its sets are. Per page and not per slot entry, since one
+/// entry can be planned in several slots.
+bool _plannedSetsDone(GymModeState state, PageEntry page) {
+  final planned = page.slotPages.where(
+    (p) => p.type == SlotPageType.log && isRequiredLogKey(p.key),
+  );
+  return planned.isEmpty
+      ? state.allLogsDone(page)
+      : planned.every((p) => state.progressOf(p.key).done);
 }
 
 class ProgressionTab extends ConsumerStatefulWidget {

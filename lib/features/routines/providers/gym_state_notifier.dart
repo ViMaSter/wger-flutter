@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:clock/clock.dart';
@@ -28,6 +29,7 @@ import 'package:wger/features/account/providers/user_profile_notifier.dart';
 import 'package:wger/features/exercises/models/exercise.dart';
 import 'package:wger/features/routines/models/added_exercise.dart';
 import 'package:wger/features/routines/models/log.dart';
+import 'package:wger/features/routines/models/overload_option.dart';
 import 'package:wger/features/routines/models/page_progress.dart';
 import 'package:wger/features/routines/models/routine.dart';
 import 'package:wger/features/routines/models/set_config_data.dart';
@@ -39,6 +41,7 @@ import 'package:wger/features/routines/providers/routines_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_repository.dart';
 import 'package:wger/features/routines/validators.dart';
+import 'package:wger/powersync/server_confirmation.dart';
 
 part 'gym_state_notifier.g.dart';
 
@@ -104,6 +107,16 @@ class GymStateNotifier extends _$GymStateNotifier {
       state = state.copyWith(stickySetValues: stickySetValues);
     }
 
+    final progressiveOverload = await prefs.getBool(PREFS_PROGRESSIVE_OVERLOAD);
+    if (progressiveOverload != null && progressiveOverload != state.progressiveOverload) {
+      state = state.copyWith(progressiveOverload: progressiveOverload);
+    }
+
+    final listLayout = await prefs.getBool(PREFS_LIST_LAYOUT);
+    if (listLayout != null && listLayout != state.listLayout) {
+      state = state.copyWith(listLayout: listLayout);
+    }
+
     final workoutNotification = await prefs.getBool(PREFS_WORKOUT_NOTIFICATION);
     if (workoutNotification != null && workoutNotification != state.showWorkoutNotification) {
       state = state.copyWith(showWorkoutNotification: workoutNotification);
@@ -141,6 +154,8 @@ class GymStateNotifier extends _$GymStateNotifier {
     await prefs.setBool(PREFS_SHOW_DISTINCT_LOGS, state.showDistinctLogs);
     await prefs.setBool(PREFS_SHOW_WORKOUT_DURATION, state.showWorkoutDuration);
     await prefs.setBool(PREFS_STICKY_SET_VALUES, state.stickySetValues);
+    await prefs.setBool(PREFS_PROGRESSIVE_OVERLOAD, state.progressiveOverload);
+    await prefs.setBool(PREFS_LIST_LAYOUT, state.listLayout);
     await prefs.setBool(PREFS_WORKOUT_NOTIFICATION, state.showWorkoutNotification);
 
     _logger.finer(
@@ -177,7 +192,23 @@ class GymStateNotifier extends _$GymStateNotifier {
             done: value.done,
             logId: value.loggedEntry?.id,
             timerStartedAt: value.timerStartedAt,
+            log: value.done ? StoredLog.fromLog(value.loggedEntry) : null,
           ),
+      },
+      routineId: state.routine.id,
+      totalSets: state.requiredLogPages.length,
+      overload: {
+        for (final MapEntry(:key, :value) in state.selectedOverload.entries)
+          '$key': StoredOverloadChoice.fromOption(value),
+      },
+      overloadDecided: state.overloadDecided.toList(),
+      extraLogs: {
+        for (final MapEntry(:key, :value) in state.extraLogs.entries)
+          '$key': value.map(StoredLog.fromLog).nonNulls.toList(),
+      },
+      drafts: {
+        for (final MapEntry(:key, :value) in state.rowDrafts.entries)
+          key: StoredRowDraft(weight: value.weight, repetitions: value.repetitions),
       },
     );
 
@@ -201,11 +232,16 @@ class GymStateNotifier extends _$GymStateNotifier {
     await loadPrefs();
 
     if (resume && state.pages.isNotEmpty) {
+      unawaited(verifyLoggedSets());
       return initialPage;
     }
 
     calculatePages();
-    return await _restoreProgress() ?? initialPage;
+    final restoredPage = await _restoreProgress();
+    if (restoredPage != null) {
+      unawaited(verifyLoggedSets());
+    }
+    return restoredPage ?? initialPage;
   }
 
   /// Applies the stored progress to the freshly calculated pages
@@ -236,8 +272,9 @@ class GymStateNotifier extends _$GymStateNotifier {
       return null;
     }
 
-    // Without the logs the done sets and timers still come back, a correction
-    // then inserts a new row instead of updating the old one
+    // Without the logs the done sets and timers still come back, from the
+    // values stored with the progress where there are some. A correction
+    // without either inserts a new row instead of updating the old one.
     final logIds = saved.pages.values.map((p) => p.logId).nonNulls.toList();
     var logs = <String?, Log>{};
     if (logIds.isNotEmpty) {
@@ -259,7 +296,7 @@ class GymStateNotifier extends _$GymStateNotifier {
         if (saved.pages[slotPage.key] case final stored?)
           slotPage.key: PageProgress(
             done: stored.done,
-            loggedEntry: logs[stored.logId],
+            loggedEntry: logs[stored.logId] ?? stored.log?.toLog(),
             timerStartedAt: stored.timerStartedAt,
           ),
     };
@@ -269,6 +306,19 @@ class GymStateNotifier extends _$GymStateNotifier {
       workoutStart: saved.workoutStart,
       validUntil: saved.validUntil,
       progress: progress,
+      selectedOverload: {
+        for (final MapEntry(:key, :value) in saved.overload.entries)
+          if ((int.tryParse(key), value.toOption()) case (final id?, final option?)) id: option,
+      },
+      overloadDecided: saved.overloadDecided.toSet(),
+      extraLogs: {
+        for (final MapEntry(:key, :value) in saved.extraLogs.entries)
+          ?int.tryParse(key): [for (final log in value) log.toLog()],
+      },
+      rowDrafts: {
+        for (final MapEntry(:key, :value) in saved.drafts.entries)
+          key: (weight: value.weight, repetitions: value.repetitions),
+      },
     );
 
     _logger.fine('Restored workout progress on page ${state.currentPage}');
@@ -502,6 +552,18 @@ class GymStateNotifier extends _$GymStateNotifier {
     }
 
     final logNotifier = ref.read(gymLogProvider.notifier)..setLog(_draftFor(slotEntryPage));
+
+    // A chosen progressive overload option wins over the sticky values
+    final overloadSet = state.overloadSetFor(slotEntryPage);
+    if (overloadSet != null) {
+      logNotifier.setRepetitions(overloadSet.repetitions);
+      if (overloadSet.weight != null) {
+        // An available weight may have more decimals than a log stores
+        logNotifier.setWeight(num.parse(overloadSet.weight!.toStringAsFixed(2)));
+      }
+      return;
+    }
+
     if (!state.stickySetValues) {
       return;
     }
@@ -682,6 +744,191 @@ class GymStateNotifier extends _$GymStateNotifier {
     _savePrefs();
   }
 
+  void setProgressiveOverload(bool value) {
+    state = state.copyWith(progressiveOverload: value);
+    _savePrefs();
+  }
+
+  /// Chooses the progressive overload [option] for the sets of [slotEntryId],
+  /// null to go back to the planned values. The current set, if it belongs to
+  /// that slot entry and isn't logged yet, is pre-filled again right away.
+  void selectOverloadOption(int slotEntryId, OverloadOption? option) {
+    final selected = {...state.selectedOverload};
+    if (option == null) {
+      selected.remove(slotEntryId);
+    } else {
+      selected[slotEntryId] = option;
+    }
+    state = state.copyWith(
+      selectedOverload: selected,
+      overloadDecided: {...state.overloadDecided, slotEntryId},
+    );
+    _saveProgress();
+
+    final slotPage = state.getSlotEntryPageByIndex();
+    if (slotPage != null &&
+        slotPage.type == SlotPageType.log &&
+        slotPage.setConfigData?.slotEntryId == slotEntryId &&
+        !state.progressOf(slotPage.key).done) {
+      startNewEntry();
+    }
+  }
+
+  /// Chooses [option] for [slotEntryId] unless an option, also "as planned",
+  /// was chosen for it already
+  void applyDefaultOverload(int slotEntryId, OverloadOption option) {
+    if (state.overloadDecided.contains(slotEntryId)) {
+      return;
+    }
+    selectOverloadOption(slotEntryId, option);
+  }
+
+  void setListLayout(bool value) {
+    state = state.copyWith(listLayout: value);
+    _savePrefs();
+  }
+
+  /// Logs the set of the log page [slotPageKey] with [repetitions] and
+  /// [weight], or corrects it when it was logged already, without the page
+  /// being shown. Then starts the rest after it, if there is one.
+  Future<void> logSetAt(String slotPageKey, {num? repetitions, num? weight}) async {
+    final slotPage = state.getSlotPageByKey(slotPageKey);
+    if (slotPage == null || slotPage.type != SlotPageType.log) {
+      _logger.warning('logSetAt called for $slotPageKey, which is no log page');
+      return;
+    }
+
+    final log = (state.progressOf(slotPageKey).loggedEntry?.copyWith() ?? _draftFor(slotPage))
+      ..repetitions = repetitions
+      ..weight = weight;
+    if (log.id == null) {
+      log.date = clock.now();
+    }
+
+    final wasDone = state.progressOf(slotPageKey).done;
+    _updateProgress(slotPageKey, (p) => p.copyWith(done: true));
+    try {
+      final logs = ref.read(workoutLogProvider);
+      if (log.id == null) {
+        await logs.addEntry(log, dayId: state.dayId);
+      } else {
+        await logs.updateEntry(log);
+      }
+    } catch (_) {
+      _updateProgress(slotPageKey, (p) => p.copyWith(done: wasDone));
+      rethrow;
+    }
+    _clearRowDraft(slotPageKey);
+    markSlotPageAsDone(slotPageKey, isDone: true, log: log);
+
+    final timer = state.timerPageAfter(slotPage);
+    if (!wasDone && timer != null) {
+      setCurrentPage(timer.pageIndex);
+    }
+  }
+
+  /// Undoes logging the set of the log page [slotPageKey], deleting its row
+  Future<void> unlogSetAt(String slotPageKey) async {
+    final logId = state.progressOf(slotPageKey).loggedEntry?.id;
+    if (logId != null) {
+      await ref.read(workoutLogProvider).deleteEntry(logId);
+    }
+    _updateProgress(slotPageKey, (p) => p.copyWith(done: false, loggedEntry: null));
+  }
+
+  /// Keeps the values entered for the set in the row [rowKey] of the list
+  /// layout that isn't logged yet, also across leaving the workout
+  void setRowDraft(String rowKey, {num? weight, num? repetitions}) {
+    state = state.copyWith(
+      rowDrafts: {...state.rowDrafts, rowKey: (weight: weight, repetitions: repetitions)},
+    );
+    _saveProgress();
+  }
+
+  void _clearRowDraft(String rowKey) {
+    if (state.rowDrafts.containsKey(rowKey)) {
+      state = state.copyWith(rowDrafts: {...state.rowDrafts}..remove(rowKey));
+    }
+  }
+
+  /// Makes sure the server has every set logged in this workout: once it
+  /// confirmed the local data, sets whose rows are gone (an upload it refused,
+  /// a write lost with the session) are written again. Runs when a workout is
+  /// continued; does nothing while the server can't confirm, e.g. offline.
+  Future<void> verifyLoggedSets() async {
+    final dayId = state.dayId;
+    final logs = [
+      for (final progress in state.progress.values)
+        if (progress.done && progress.loggedEntry?.id != null) progress.loggedEntry!,
+      ...state.extraLogs.values.expand((logs) => logs),
+    ];
+    if (logs.isEmpty) {
+      return;
+    }
+
+    // Runs in the background, a failure only means no check this time
+    try {
+      final confirmed = await ref.read(serverConfirmationProvider)();
+      // The workout may have ended or changed while waiting
+      if (!confirmed || !ref.mounted || !state.isInitialized || state.dayId != dayId) {
+        _logger.fine('Logged sets not verified, the server could not confirm them');
+        return;
+      }
+
+      final resent = await ref.read(workoutLogRepositoryProvider).resubmitMissing(logs);
+      _logger.info('Verified ${logs.length} logged sets, sent ${resent.length} again');
+    } catch (e, s) {
+      _logger.warning('Could not verify the logged sets', e, s);
+    }
+  }
+
+  /// Logs a set of [slotEntryId] beyond its planned ones, e.g. the extra set
+  /// of [OverloadType.moreSets] or one added in the list layout. [draftKey]
+  /// is the row it was entered in, its draft is done with.
+  Future<void> logExtraSet(
+    int slotEntryId, {
+    num? repetitions,
+    num? weight,
+    String? draftKey,
+  }) async {
+    final template = state.logPagesBySlotEntry
+        .firstWhereOrNull((pages) => pages.first.setConfigData!.slotEntryId == slotEntryId)
+        ?.last;
+    if (template == null) {
+      return;
+    }
+
+    final log = _draftFor(template)
+      ..repetitions = repetitions
+      ..weight = weight
+      ..date = clock.now();
+    await ref.read(workoutLogProvider).addEntry(log, dayId: state.dayId);
+    state = state.copyWith(
+      extraLogs: {
+        ...state.extraLogs,
+        slotEntryId: [...?state.extraLogs[slotEntryId], log],
+      },
+    );
+    if (draftKey != null) {
+      _clearRowDraft(draftKey);
+    }
+    _saveProgress();
+  }
+
+  /// Undoes [logExtraSet] for the extra set at [index] of [slotEntryId]
+  Future<void> removeExtraSet(int slotEntryId, int index) async {
+    final logs = [...?state.extraLogs[slotEntryId]];
+    if (index < 0 || index >= logs.length) {
+      return;
+    }
+    final removed = logs.removeAt(index);
+    if (removed.id != null) {
+      await ref.read(workoutLogProvider).deleteEntry(removed.id!);
+    }
+    state = state.copyWith(extraLogs: {...state.extraLogs, slotEntryId: logs});
+    _saveProgress();
+  }
+
   void setShowWorkoutNotification(bool value) {
     state = state.copyWith(showWorkoutNotification: value);
     _savePrefs();
@@ -803,6 +1050,29 @@ class GymStateNotifier extends _$GymStateNotifier {
     _saveProgress();
   }
 
+  /// Ends the workout from the list layout: the stored progress is removed
+  /// and every set value is reset, so opening the workout again starts fresh.
+  ///
+  /// Unlike [clear] the routine, day and start of the workout stay, since the
+  /// session page shown next still saves the session with them. Marking the
+  /// state as not initialized stops the rest timer and the notification, keeps
+  /// the progress from being stored again and makes the next [open] start a
+  /// new workout. The summary page clears the rest as before.
+  Future<void> finishWorkout() async {
+    _logger.fine('Finishing workout');
+    state = state.copyWith(
+      isInitialized: false,
+      currentPage: 0,
+      progress: const {},
+      addedExercises: const [],
+      selectedOverload: const {},
+      overloadDecided: const {},
+      extraLogs: const {},
+      rowDrafts: const {},
+    );
+    await _clearProgress();
+  }
+
   void clear() {
     _logger.fine('Clearing state');
     state = state.copyWith(
@@ -811,6 +1081,10 @@ class GymStateNotifier extends _$GymStateNotifier {
       currentPage: 0,
       progress: const {},
       addedExercises: const [],
+      selectedOverload: const {},
+      overloadDecided: const {},
+      extraLogs: const {},
+      rowDrafts: const {},
 
       validUntil: clock.now().add(DEFAULT_DURATION),
       workoutStart: clock.now(),

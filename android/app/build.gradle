@@ -62,6 +62,16 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
+
+            // WGER_LOCAL_RELEASE=1: a release build for testing on an own
+            // device without the store key. Own application id and name, so it
+            // sits next to an installed store version, signed with the local
+            // debug key.
+            if (System.getenv('WGER_LOCAL_RELEASE') == '1') {
+                applicationIdSuffix ".local"
+                resValue "string", "app_name", "wger - local"
+                signingConfig signingConfigs.debug
+            }
         }
         debug {
             // Own application id and name, so a debug build can sit next to the

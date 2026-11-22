@@ -42,6 +42,7 @@ class DecimalInputWidget extends StatefulWidget {
     this.min,
     this.max,
     this.steppers = const [],
+    this.maxDecimalPlaces = 2,
     super.key,
   });
 
@@ -69,6 +70,9 @@ class DecimalInputWidget extends StatefulWidget {
   /// Step sizes for the quick +/- buttons around the field, biggest first.
   /// Empty for a plain field.
   final List<num> steppers;
+
+  /// Digits kept after the decimal separator, see [LocalizedDecimalInputFormatter]
+  final int maxDecimalPlaces;
 
   @override
   State<DecimalInputWidget> createState() => _DecimalInputWidgetState();
@@ -162,7 +166,12 @@ class _DecimalInputWidgetState extends State<DecimalInputWidget> {
             : null,
       ),
       keyboardType: textInputTypeDecimal,
-      inputFormatters: [LocalizedDecimalInputFormatter(numberFormat.symbols.DECIMAL_SEP)],
+      inputFormatters: [
+        LocalizedDecimalInputFormatter(
+          numberFormat.symbols.DECIMAL_SEP,
+          maxDecimalPlaces: widget.maxDecimalPlaces,
+        ),
+      ],
       onChanged: (text) {
         final trimmed = text.trim();
         widget.onChanged(trimmed.isEmpty ? null : numberFormat.tryParse(trimmed));

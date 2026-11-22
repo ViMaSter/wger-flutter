@@ -39,6 +39,10 @@ const FlexSubThemesData wgerSubThemeData = FlexSubThemesData(
   appBarScrolledUnderElevation: 4,
   navigationBarIndicatorOpacity: 0.24,
   navigationBarHeight: 56,
+  // Selected chips, e.g. the progressive overload options, stand out in the
+  // primary color; FlexColorScheme pairs it with onPrimary for the label
+  chipSelectedSchemeColor: SchemeColor.primary,
+  chipSecondarySelectedSchemeColor: SchemeColor.primary,
 );
 
 const String wgerDisplayFont = 'RobotoCondensed';

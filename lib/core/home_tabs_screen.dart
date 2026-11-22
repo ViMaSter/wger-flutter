@@ -25,6 +25,7 @@ import 'package:wger/features/gallery/screens/gallery_screen.dart';
 import 'package:wger/features/health/providers/health_sync.dart';
 import 'package:wger/features/measurements/screens/measurement_categories_screen.dart';
 import 'package:wger/features/nutrition/screens/nutritional_plans_screen.dart';
+import 'package:wger/features/routines/providers/workout_resume.dart';
 import 'package:wger/features/routines/screens/routine_list_screen.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
@@ -58,6 +59,9 @@ class _HomeTabsScreenState extends ConsumerState<HomeTabsScreen>
       // Report the device timezone to the profile, so the server calculates
       // streaks and trophies in the user's own zone. A no-op when unchanged.
       ref.read(timezoneSyncProvider).reportIfNeeded();
+
+      // A workout interrupted with sets left goes on instead of the dashboard
+      continueInterruptedWorkout(context, ref);
     });
   }
 

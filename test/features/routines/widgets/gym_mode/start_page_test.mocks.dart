@@ -9,6 +9,7 @@ import 'dart:async' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart' as _i4;
 import 'package:wger/features/routines/notifications/workout_notification_service.dart' as _i2;
+import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -114,6 +115,24 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i2.WorkoutNoti
   _i3.Future<void> cancelAll() =>
       (super.noSuchMethod(
             Invocation.method(#cancelAll, []),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> scheduleReminder(_i5.MissingEntriesReminder? reminder) =>
+      (super.noSuchMethod(
+            Invocation.method(#scheduleReminder, [reminder]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> cancelReminder() =>
+      (super.noSuchMethod(
+            Invocation.method(#cancelReminder, []),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )

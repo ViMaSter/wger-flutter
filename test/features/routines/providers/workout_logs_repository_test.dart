@@ -284,6 +284,94 @@ void main() {
     });
   });
 
+  group('getLastSessionLogsByExercise', () {
+    Future<void> insert(Log log) => db.into(db.workoutLogTable).insert(log.toCompanion());
+
+    test('is empty when the exercise was not logged before', () async {
+      await insert(makeLog(sessionId: 's1', date: DateTime.utc(2026, 4, 10)));
+
+      expect(
+        await repo.getLastSessionLogsByExercise(1, before: DateTime.utc(2026, 4, 10)),
+        isEmpty,
+      );
+    });
+
+    test('returns the sets of the newest session before, oldest first', () async {
+      await seedUnits();
+      // An older session
+      await insert(makeLog(sessionId: 's1', date: DateTime.utc(2026, 4, 10, 10), weight: 10));
+      // The last session, logged out of order, with another exercise in it
+      await insert(makeLog(sessionId: 's2', date: DateTime.utc(2026, 4, 12, 10, 5), weight: 22));
+      await insert(makeLog(sessionId: 's2', date: DateTime.utc(2026, 4, 12, 10), weight: 21));
+      await insert(
+        makeLog(exerciseId: 2, sessionId: 's2', date: DateTime.utc(2026, 4, 12, 10, 3)),
+      );
+      // The running workout: starts exactly at `before`, so it doesn't count
+      await insert(makeLog(sessionId: 's3', date: DateTime.utc(2026, 4, 15, 10), weight: 30));
+
+      final logs = await repo.getLastSessionLogsByExercise(
+        1,
+        before: DateTime.utc(2026, 4, 15, 10),
+      );
+
+      expect(logs.map((l) => l.weight), [21, 22]);
+      expect(logs.first.weightUnitObj?.name, 'kg');
+    });
+
+    test('groups logs without a session by calendar day', () async {
+      await insert(makeLog(date: DateTime(2026, 4, 11, 23, 30), weight: 11));
+      await insert(makeLog(date: DateTime(2026, 4, 12, 0, 15), weight: 12));
+      await insert(makeLog(date: DateTime(2026, 4, 12, 18), weight: 13));
+      // Same day, but in a session: not the same workout
+      await insert(makeLog(sessionId: 's1', date: DateTime(2026, 4, 12, 9), weight: 99));
+
+      final logs = await repo.getLastSessionLogsByExercise(1, before: DateTime(2026, 4, 13));
+
+      expect(logs.map((l) => l.weight), [12, 13]);
+    });
+  });
+
+  group('resubmitMissing', () {
+    test('writes the missing logs again with their IDs, leaves the others alone', () async {
+      final session = WorkoutSession(
+        id: 'session-1',
+        routineId: 100,
+        datetimeStart: DateTime.utc(2026, 4, 15, 16),
+      );
+      await db.into(db.workoutSessionTable).insert(session.toCompanion());
+      final kept = makeLog(sessionId: 'session-1', weight: 50)..id = 'kept';
+      await db.into(db.workoutLogTable).insert(kept.toCompanion());
+      final lost = makeLog(sessionId: 'session-1', weight: 55, repetitions: 8)..id = 'lost';
+
+      final resent = await repo.resubmitMissing([kept, lost]);
+
+      expect(resent.map((l) => l.id), ['lost']);
+      final rows = {for (final row in await readLogs()) row.id: row};
+      expect(rows.keys, unorderedEquals(['kept', 'lost']));
+      expect(rows['lost']!.weight, 55);
+      expect(rows['lost']!.repetitions, 8);
+      expect(rows['lost']!.sessionId, 'session-1');
+      expect(await readSessions(), hasLength(1));
+    });
+
+    test('a lost session is replaced by one for the day', () async {
+      final lost = makeLog(sessionId: 'gone-session', date: DateTime.utc(2026, 4, 15, 18))
+        ..id = 'lost';
+
+      await repo.resubmitMissing([lost]);
+
+      final row = (await readLogs()).single;
+      expect(row.id, 'lost');
+      expect(row.sessionId, isNot('gone-session'));
+      expect((await readSessions()).single.id, row.sessionId);
+    });
+
+    test('nothing to do without IDs', () async {
+      expect(await repo.resubmitMissing([makeLog()]), isEmpty);
+      expect(await readLogs(), isEmpty);
+    });
+  });
+
   group('updateLocalDrift', () {
     test('overwrites the row with matching id', () async {
       final log = makeLog(sessionId: 'session-1', weight: 50);
@@ -496,6 +584,29 @@ void main() {
 
       expect(found.map((l) => l.weight), unorderedEquals([10, 30]));
       expect(found.map((l) => l.weightUnitObj?.name), everyElement('kg'));
+    });
+  });
+
+  group('getDistinctWeightsByExercise', () {
+    test('returns each weight above zero once, ascending, only of that exercise', () async {
+      for (final weight in [22.5, 17.5, 22.5, 0, 17.5]) {
+        await repo.addLocalDrift(makeLog(weight: weight, sessionId: 's'));
+      }
+      await repo.addLocalDrift(
+        Log(exerciseId: 1, sessionId: 's', repetitions: 10, weight: null, date: DateTime.utc(2026)),
+      );
+      await repo.addLocalDrift(makeLog(exerciseId: 2, weight: 40, sessionId: 's'));
+
+      expect(await repo.getDistinctWeightsByExercise(1), [17.5, 22.5]);
+    });
+
+    test('with a weight unit, only the weights logged in that unit', () async {
+      await repo.addLocalDrift(makeLog(weight: 20, sessionId: 's'));
+      await repo.addLocalDrift(makeLog(weight: 45, sessionId: 's')..weightUnitId = 2);
+
+      expect(await repo.getDistinctWeightsByExercise(1, weightUnitId: 1), [20]);
+      expect(await repo.getDistinctWeightsByExercise(1, weightUnitId: 2), [45]);
+      expect(await repo.getDistinctWeightsByExercise(1), [20, 45]);
     });
   });
 }

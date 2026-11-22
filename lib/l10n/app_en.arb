@@ -473,6 +473,182 @@
   "@gymModeStickySetValuesHelp": {
     "description": "Help text for the sticky set values setting in the gym mode"
   },
+  "progressiveOverload": "Progressive overload",
+  "@progressiveOverload": {
+    "description": "Label for a gym mode setting and title of the card that suggests how to do at least as much as in the previous session of an exercise (more repetitions, a heavier weight or one more set)"
+  },
+  "progressiveOverloadHelp": "Suggest how to beat your last session and pre-fill the sets with your choice",
+  "@progressiveOverloadHelp": {
+    "description": "Help text for the progressive overload setting in the gym mode"
+  },
+  "progressiveOverloadIntro": "Do one of these today so you don't do less than last time",
+  "@progressiveOverloadIntro": {
+    "description": "Text above the list of progressive overload options in the gym mode"
+  },
+  "progressiveOverloadLastTime": "Last time: {calculation} = {volume}",
+  "@progressiveOverloadLastTime": {
+    "description": "The sets of the previous session of an exercise and their volume (sum of repetitions × weight), e.g. 'Last time: 3 × (5 × 30 kg) + 5 × 35 kg = 625 kg'",
+    "placeholders": {
+      "calculation": {
+        "type": "String"
+      },
+      "volume": {
+        "type": "String"
+      }
+    }
+  },
+  "progressiveOverloadRequiredReps": "{count, plural, one{At least {count} repetition in total ({calculation}), split any way} other{At least {count} repetitions in total ({calculation}), split any way}}",
+  "@progressiveOverloadRequiredReps": {
+    "description": "For a heavier progressive overload option: the fewest repetitions over all sets that keep the volume of last time, with the calculation, e.g. 'At least 24 repetitions in total (775 ÷ 32.5 = 23.8), split any way'",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "calculation": {
+        "type": "String"
+      }
+    }
+  },
+  "progressiveOverloadFirstTime": "No previous session yet, log as planned",
+  "@progressiveOverloadFirstTime": {
+    "description": "Shown instead of progressive overload options when an exercise was never logged before"
+  },
+  "progressiveOverloadMoreReps": "More repetitions",
+  "@progressiveOverloadMoreReps": {
+    "description": "Progressive overload option: the same weight with one more repetition"
+  },
+  "progressiveOverloadHeavier": "Heavier weight",
+  "@progressiveOverloadHeavier": {
+    "description": "Progressive overload option: the next available weight, with enough repetitions to keep the volume"
+  },
+  "progressiveOverloadMoreSets": "One more set",
+  "@progressiveOverloadMoreSets": {
+    "description": "Progressive overload option: the sets of last time plus one more"
+  },
+  "progressiveOverloadAsPlanned": "As planned",
+  "@progressiveOverloadAsPlanned": {
+    "description": "Choice in the progressive overload options to use the planned values of the routine instead of an option"
+  },
+  "gymModeSetCount": "{count, plural, one{{count} set} other{{count} sets}}",
+  "@gymModeSetCount": {
+    "description": "Number of planned sets, part of 'gymModeSetsOfReps', e.g. '3 sets'",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gymModeRepCount": "{count, plural, one{{count} rep} other{{count} reps}}",
+  "@gymModeRepCount": {
+    "description": "Planned repetitions per set without a range, part of 'gymModeSetsOfReps', e.g. '5 reps'",
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "gymModeRepRange": "{max, plural, one{{min}–{max} rep} other{{min}–{max} reps}}",
+  "@gymModeRepRange": {
+    "description": "Planned repetition range per set, part of 'gymModeSetsOfReps', e.g. '3–5 reps'",
+    "placeholders": {
+      "min": {
+        "type": "num",
+        "format": "decimalPattern"
+      },
+      "max": {
+        "type": "num",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "gymModeSetsOfReps": "{sets} of {reps}",
+  "@gymModeSetsOfReps": {
+    "description": "The planned sets and repetitions of an exercise in the one-page gym mode, e.g. '3 sets of 3–5 reps'. The placeholders are 'gymModeSetCount' and 'gymModeRepRange' or 'gymModeRepCount'",
+    "placeholders": {
+      "sets": {
+        "type": "String"
+      },
+      "reps": {
+        "type": "String"
+      }
+    }
+  },
+  "progressiveOverloadAsBefore": "As before",
+  "@progressiveOverloadAsBefore": {
+    "description": "Choice in the one-page gym mode to fill the sets of an exercise with exactly what was done last time, instead of a progressive overload option"
+  },
+  "progressiveOverloadAtMaxReps": "Every set is at the top of the repetition range, time to go heavier",
+  "@progressiveOverloadAtMaxReps": {
+    "description": "Shown in the progressive overload options when no set can get another repetition within the repetition range"
+  },
+  "progressiveOverloadNoWeights": "Add the weights your equipment offers to also get heavier options",
+  "@progressiveOverloadNoWeights": {
+    "description": "Hint in the progressive overload options when no available weights were entered for the exercise"
+  },
+  "progressiveOverloadVolume": "Volume {volume}",
+  "@progressiveOverloadVolume": {
+    "description": "Total volume (sum of weight × repetitions) of a progressive overload option",
+    "placeholders": {
+      "volume": {
+        "type": "String"
+      }
+    }
+  },
+  "progressiveOverloadTarget": "Target: {target}",
+  "@progressiveOverloadTarget": {
+    "description": "On the gym mode log page, the set to do according to the chosen progressive overload option, e.g. 'Target: 9 × 22.5 kg'",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "progressiveOverloadChoose": "Choose a progressive overload target",
+  "@progressiveOverloadChoose": {
+    "description": "Button on the gym mode log page that opens the progressive overload options"
+  },
+  "progressiveOverloadExtraSet": "Then log one more set",
+  "@progressiveOverloadExtraSet": {
+    "description": "On the last log page of an exercise, reminds the user that the chosen progressive overload option has one more set than planned"
+  },
+  "gymModeListLayout": "Whole workout on one page",
+  "@gymModeListLayout": {
+    "description": "Label for a gym mode setting: shows every exercise of the workout on one page with a table of its sets, instead of a page per set"
+  },
+  "gymModeListLayoutHelp": "A table of sets per exercise instead of a page per set",
+  "@gymModeListLayoutHelp": {
+    "description": "Help text for the whole workout on one page setting in the gym mode"
+  },
+  "progressiveOverloadMoreRepsShort": "+1 rep",
+  "@progressiveOverloadMoreRepsShort": {
+    "description": "Short label of the progressive overload option with one more repetition, used on a small chip"
+  },
+  "progressiveOverloadMoreSetsShort": "+1 set",
+  "@progressiveOverloadMoreSetsShort": {
+    "description": "Short label of the progressive overload option with one more set, used on a small chip"
+  },
+  "gymModeRest": "Rest {time}",
+  "@gymModeRest": {
+    "description": "Bar in the one-page gym mode while resting between sets, with the remaining (or elapsed) time, e.g. 'Rest 1:23'",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "gymModeSkipRest": "Skip",
+  "@gymModeSkipRest": {
+    "description": "Button in the one-page gym mode that ends the rest between sets"
+  },
+  "availableWeights": "Available weights",
+  "@availableWeights": {
+    "description": "Title of the dialog where the user enters the weights the equipment of an exercise offers, e.g. the steps of a cable tower"
+  },
+  "availableWeightsHelp": "The weights the equipment of this exercise offers, they don't have to be evenly spaced",
+  "@availableWeightsHelp": {
+    "description": "Help text in the available weights dialog"
+  },
   "jumpTo": "Jump to",
   "@jumpTo": {
     "description": "Imperative. Label used in popup allowing the user to jump to a specific exercise while in the gym mode"
@@ -2050,5 +2226,81 @@
       "min": { "type": "int" },
       "max": { "type": "int" }
     }
-  }
+  },
+  "gymModeTotal": "Total",
+  "@gymModeTotal": {"description": "Label of the totals row under the set table header: previous volume, current volume, difference"},
+  "gymModePlannedActualVolume": "Planned {planned} · Actual {actual}",
+  "@gymModePlannedActualVolume": {"description": "Volume line under the 'X sets of Y reps' text. planned = target volume of the required sets, actual = volume logged so far", "placeholders": {"planned": {"type": "String"}, "actual": {"type": "String"}}},
+  "gymModeFillLowerWeight": "Fill with {weight}",
+  "@gymModeFillLowerWeight": {"description": "Chip offering extra sets at a lower weight to make up missing volume, e.g. 'Fill with 35 kg'", "placeholders": {"weight": {"type": "String"}}},
+  "gymModeFillLowerWeightHelp": "Below target. Fill the remaining volume with a lower weight:",
+  "@gymModeFillLowerWeightHelp": {"description": "Shown above the fill chips when the remaining sets can no longer beat the previous volume"},
+  "gymModeFillNeedWeights": "Add lower weights",
+  "@gymModeFillNeedWeights": {"description": "Chip shown when no lower weight is known for the exercise yet, opens the equipment weights editor"},
+  "finishWorkout": "Finish workout",
+  "@finishWorkout": {"description": "Button at the end of the workout list that finishes the workout"},
+  "finishWorkoutConfirmTitle": "Finish with fewer sets?",
+  "@finishWorkoutConfirmTitle": {"description": "Title of the dialog shown when finishing with fewer sets than planned"},
+  "finishWorkoutConfirmBody": "You logged fewer sets than planned:",
+  "@finishWorkoutConfirmBody": {"description": "Text above the table of exercises with missing sets"},
+  "finishWorkoutPlannedSets": "Planned",
+  "@finishWorkoutPlannedSets": {"description": "Column header in the finish dialog: planned sets"},
+  "finishWorkoutLoggedSets": "Logged",
+  "@finishWorkoutLoggedSets": {"description": "Column header in the finish dialog: logged sets"},
+  "finishWorkoutConfirm": "Finish anyway",
+  "@finishWorkoutConfirm": {"description": "Confirm button of the finish dialog"},
+  "workoutReminderTitle": "Missed any entries?",
+  "@workoutReminderTitle": {"description": "Title of the notification sent when nothing was logged for 30 minutes during a workout"},
+  "workoutReminderBody": "{count, plural, =0{{exercise} is missing entries} one{{exercise} and {count} other exercise are missing entries} other{{exercise} and {count} other exercises are missing entries}}",
+  "@workoutReminderBody": {"description": "Body of the reminder notification. exercise = first exercise with missing sets, count = number of further exercises with missing sets", "placeholders": {"exercise": {"type": "String"}, "count": {"type": "int"}}},
+  "workoutNotificationExtendRestBy": "+{duration}",
+  "@workoutNotificationExtendRestBy": {"description": "Notification button that extends the rest, e.g. '+1:30'", "placeholders": {"duration": {"type": "String"}}},
+  "weightProfile": "Equipment weights",
+  "@weightProfile": {"description": "Title of the sheet where the weights an exercise's equipment offers are configured"},
+  "weightProfileNone": "No equipment weights set up for this exercise",
+  "@weightProfileNone": {"description": "Shown when no weight profile is assigned"},
+  "weightProfileCreate": "New equipment",
+  "@weightProfileCreate": {"description": "Button creating a new weight profile"},
+  "weightProfileEdit": "Edit equipment",
+  "@weightProfileEdit": {"description": "Button editing the assigned weight profile"},
+  "weightProfileName": "Name",
+  "@weightProfileName": {"description": "Name field of a weight profile, e.g. 'Pec deck stack'"},
+  "weightProfileKind": "Type",
+  "@weightProfileKind": {"description": "Label of the weight profile type selector"},
+  "weightProfileKindPlates": "Bar + plates",
+  "@weightProfileKindPlates": {"description": "Weight profile type: a bar or handle loaded with plates on both sides"},
+  "weightProfileKindFixed": "Fixed weights",
+  "@weightProfileKindFixed": {"description": "Weight profile type: fixed weights such as dumbbells"},
+  "weightProfileKindLinear": "Weight stack",
+  "@weightProfileKindLinear": {"description": "Weight profile type: evenly spaced weights such as a machine stack, optionally with small add-on weights"},
+  "weightProfileBar": "Bar / handle weight",
+  "@weightProfileBar": {"description": "Weight of the empty bar or handle"},
+  "weightProfileStart": "Lightest weight",
+  "@weightProfileStart": {"description": "First weight of a weight stack"},
+  "weightProfileStep": "Increment",
+  "@weightProfileStep": {"description": "Distance between two weights of a weight stack"},
+  "weightProfileMax": "Heaviest weight",
+  "@weightProfileMax": {"description": "Last weight of a weight stack"},
+  "weightProfilePlates": "Plates (per side)",
+  "@weightProfilePlates": {"description": "Plate weights available, loaded in pairs"},
+  "weightProfileFixedWeights": "Weights",
+  "@weightProfileFixedWeights": {"description": "List of fixed weights"},
+  "weightProfileBonus": "Add-on weights",
+  "@weightProfileBonus": {"description": "Small weights that can be added on top of a stack, independent of its increment, e.g. 0.625"},
+  "weightProfileAssign": "Use for this exercise",
+  "@weightProfileAssign": {"description": "Button assigning a weight profile to the current exercise"},
+  "weightProfileUnreachable": "{weight} can't be set with this equipment",
+  "@weightProfileUnreachable": {"description": "Shown in the equipment sheet when the row's weight is not achievable", "placeholders": {"weight": {"type": "String"}}},
+  "weightProfileSetup": "Setup for {weight}",
+  "@weightProfileSetup": {"description": "Heading of the plate math section, e.g. 'Setup for 40 kg'", "placeholders": {"weight": {"type": "String"}}},
+  "loadoutBar": "Bar {weight}",
+  "@loadoutBar": {"description": "Plate math: the bar or handle weight", "placeholders": {"weight": {"type": "String"}}},
+  "loadoutPerSide": "Per side: {plates}",
+  "@loadoutPerSide": {"description": "Plate math: plates on each side, e.g. 'Per side: 5 + 1.25'", "placeholders": {"plates": {"type": "String"}}},
+  "loadoutPin": "Pin at {weight}",
+  "@loadoutPin": {"description": "Plate math for a weight stack: where to put the pin", "placeholders": {"weight": {"type": "String"}}},
+  "loadoutAddOn": "Add-ons: {weights}",
+  "@loadoutAddOn": {"description": "Plate math: add-on weights to put on top, e.g. 'Add-ons: 0.625 + 0.625'", "placeholders": {"weights": {"type": "String"}}},
+  "loadoutFixed": "Take {weight}",
+  "@loadoutFixed": {"description": "Plate math for fixed weights: which weight to take", "placeholders": {"weight": {"type": "String"}}}
 }

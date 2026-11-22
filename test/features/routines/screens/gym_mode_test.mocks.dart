@@ -30,6 +30,7 @@ import 'package:wger/features/routines/models/slot_entry.dart' as _i6;
 import 'package:wger/features/routines/models/weight_unit.dart' as _i20;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart' as _i32;
 import 'package:wger/features/routines/notifications/workout_notification_service.dart' as _i31;
+import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i33;
 import 'package:wger/features/routines/providers/routines_repository.dart' as _i19;
 import 'package:wger/features/routines/providers/workout_logs_repository.dart' as _i27;
 import 'package:wger/features/routines/providers/workout_session_repository.dart' as _i9;
@@ -564,6 +565,44 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i27.WorkoutLogReposi
           as _i10.Future<_i28.Log?>);
 
   @override
+  _i10.Future<List<_i28.Log>> getLastSessionLogsByExercise(
+    int? exerciseId, {
+    required DateTime? before,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #getLastSessionLogsByExercise,
+              [exerciseId],
+              {#before: before},
+            ),
+            returnValue: _i10.Future<List<_i28.Log>>.value(<_i28.Log>[]),
+          )
+          as _i10.Future<List<_i28.Log>>);
+
+  @override
+  _i10.Future<List<num>> getDistinctWeightsByExercise(
+    int? exerciseId, {
+    int? weightUnitId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #getDistinctWeightsByExercise,
+              [exerciseId],
+              {#weightUnitId: weightUnitId},
+            ),
+            returnValue: _i10.Future<List<num>>.value(<num>[]),
+          )
+          as _i10.Future<List<num>>);
+
+  @override
+  _i10.Future<List<_i28.Log>> resubmitMissing(List<_i28.Log>? logs) =>
+      (super.noSuchMethod(
+            Invocation.method(#resubmitMissing, [logs]),
+            returnValue: _i10.Future<List<_i28.Log>>.value(<_i28.Log>[]),
+          )
+          as _i10.Future<List<_i28.Log>>);
+
+  @override
   _i10.Future<List<_i28.Log>> getLogsByIds(List<String>? ids) =>
       (super.noSuchMethod(
             Invocation.method(#getLogsByIds, [ids]),
@@ -724,6 +763,24 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i31.WorkoutNot
   _i10.Future<void> cancelAll() =>
       (super.noSuchMethod(
             Invocation.method(#cancelAll, []),
+            returnValue: _i10.Future<void>.value(),
+            returnValueForMissingStub: _i10.Future<void>.value(),
+          )
+          as _i10.Future<void>);
+
+  @override
+  _i10.Future<void> scheduleReminder(_i33.MissingEntriesReminder? reminder) =>
+      (super.noSuchMethod(
+            Invocation.method(#scheduleReminder, [reminder]),
+            returnValue: _i10.Future<void>.value(),
+            returnValueForMissingStub: _i10.Future<void>.value(),
+          )
+          as _i10.Future<void>);
+
+  @override
+  _i10.Future<void> cancelReminder() =>
+      (super.noSuchMethod(
+            Invocation.method(#cancelReminder, []),
             returnValue: _i10.Future<void>.value(),
             returnValueForMissingStub: _i10.Future<void>.value(),
           )

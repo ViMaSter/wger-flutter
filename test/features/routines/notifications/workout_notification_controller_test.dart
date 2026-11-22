@@ -29,6 +29,7 @@ import 'package:wger/features/routines/models/log.dart';
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_notification_controller.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
+import 'package:wger/features/routines/notifications/workout_reminder.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_notifier.dart';
@@ -57,6 +58,8 @@ void main() {
     when(service.showNotLogged(any)).thenAnswer((_) async {});
     when(service.actionHandled()).thenAnswer((_) async {});
     when(service.initialize(any)).thenAnswer((_) async {});
+    when(service.scheduleReminder(any)).thenAnswer((_) async {});
+    when(service.cancelReminder()).thenAnswer((_) async {});
     logRepo = MockWorkoutLogRepository();
     when(logRepo.addLocalDrift(any, dayId: anyNamed('dayId'))).thenAnswer((_) async {});
 
@@ -219,6 +222,70 @@ void main() {
 
     verify(service.scheduleRestAlarm(any, any)).called(1);
     verifyNever(service.showControls(any, any));
+  });
+
+  group('Reminder of missing entries', () {
+    MissingEntriesReminder lastReminder() =>
+        verify(service.scheduleReminder(captureAny)).captured.last as MissingEntriesReminder;
+
+    Future<void> start() async {
+      // The clean-up at startup also removes a reminder left behind
+      await settle();
+      verify(service.cancelReminder()).called(1);
+
+      await withClock(Clock.fixed(now), () async {
+        initGymMode();
+        await settle();
+      });
+    }
+
+    test('Scheduled when the workout starts, also with gym mode on screen', () async {
+      await start();
+
+      final reminder = lastReminder();
+      expect(reminder.at, now.add(WORKOUT_REMINDER_DELAY));
+      expect(reminder.title, 'Missed any entries?');
+      verifyNever(service.cancelReminder());
+    });
+
+    test('Moves along with a newly logged set', () async {
+      await start();
+      final later = now.add(const Duration(minutes: 10));
+      final firstLog = gymState.state.logPagesBySlotEntry.first.first;
+
+      await withClock(Clock.fixed(later), () async {
+        await gymState.logSetAt(firstLog.key, repetitions: 5, weight: 50);
+        await settle();
+      });
+
+      expect(lastReminder().at, later.add(WORKOUT_REMINDER_DELAY));
+    });
+
+    test('Unchanged reminders are not scheduled again', () async {
+      await start();
+      clearInteractions(service);
+
+      await withClock(Clock.fixed(now), () async {
+        gymState.setShowDistinctLogs(false);
+        await settle();
+      });
+
+      verifyNever(service.scheduleReminder(any));
+      verifyNever(service.cancelReminder());
+    });
+
+    test('Cancelled once the workout is cleared', () async {
+      await start();
+      clearInteractions(service);
+
+      await withClock(Clock.fixed(now), () async {
+        gymState.clear();
+        await settle();
+      });
+
+      verify(service.cancelReminder()).called(1);
+      verifyNever(service.scheduleReminder(any));
+    });
   });
 
   group('Startup', () {
@@ -398,28 +465,60 @@ void main() {
       });
     });
 
-    test('"+30 s" makes the rest longer and moves the alarm', () async {
-      await startRest();
-      final rest = gymState.state.currentPage;
-      final endsAt = gymState.state.restEndsAt!;
-      clearInteractions(service);
+    /// The first rest of the fixture with [restTime] and [maxRestTime]
+    void restOf({required num restTime, num? maxRestTime}) {
+      initGymMode();
+      slotPage(
+          gymState.state.pages
+              .expand((p) => p.slotPages)
+              .firstWhere(
+                (p) => p.type == SlotPageType.timer,
+              )
+              .pageIndex,
+        ).setConfigData!
+        ..restTime = restTime
+        ..maxRestTime = maxRestTime;
+    }
 
-      await withClock(Clock.fixed(now), () async {
-        await container
-            .read(workoutNotificationControllerProvider)
-            .handleAction(
-              WORKOUT_NOTIFICATION_ACTION_EXTEND_REST,
-              payloadFor(restSlotKey: slotPage(rest).key),
-            );
-        await settle();
-      });
-
-      expect(gymState.state.restEndsAt, endsAt.add(REST_EXTENSION));
-      final alarms = verify(service.scheduleRestAlarm(captureAny, any)).captured;
-      expect((alarms.last as RestAlarm).at, endsAt.add(REST_EXTENSION));
+    Future<void> extendRest() => withClock(Clock.fixed(now), () async {
+      await container
+          .read(workoutNotificationControllerProvider)
+          .handleAction(
+            WORKOUT_NOTIFICATION_ACTION_EXTEND_REST,
+            payloadFor(restSlotKey: slotPage(gymState.state.currentPage).key),
+          );
+      await settle();
     });
 
-    test('"+30 s" from an earlier rest changes nothing', () async {
+    test('"Extend rest" adds up to the maximum rest and moves the alarm', () async {
+      restOf(restTime: 60, maxRestTime: 150);
+      await startRest();
+      final endsAt = gymState.state.restEndsAt!;
+      expect(endsAt, now.add(const Duration(seconds: 60)));
+      final labels =
+          verify(service.scheduleRestAlarm(any, captureAny)).captured.last
+              as WorkoutNotificationLabels;
+      expect(labels.extendRest, '+1:30');
+      clearInteractions(service);
+
+      await extendRest();
+
+      expect(gymState.state.restEndsAt, endsAt.add(const Duration(seconds: 90)));
+      final alarms = verify(service.scheduleRestAlarm(captureAny, any)).captured;
+      expect((alarms.last as RestAlarm).at, endsAt.add(const Duration(seconds: 90)));
+    });
+
+    test('"Extend rest" adds a minute without a maximum rest', () async {
+      restOf(restTime: 60);
+      await startRest();
+      final endsAt = gymState.state.restEndsAt!;
+
+      await extendRest();
+
+      expect(gymState.state.restEndsAt, endsAt.add(const Duration(minutes: 1)));
+    });
+
+    test('"Extend rest" from an earlier rest changes nothing', () async {
       await startRest();
       final endsAt = gymState.state.restEndsAt!;
 

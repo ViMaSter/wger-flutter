@@ -275,6 +275,22 @@ void main() {
       expect(button('rest-timer-min').onPressed, isNotNull);
     });
 
+    testWidgets('keeps counting below zero after the end, in the error color', (tester) async {
+      await withClock(Clock.fixed(t0), () async {
+        startRest(t0.subtract(rest + const Duration(seconds: 42)));
+        await pumpCountdown(tester);
+      });
+      final text = tester.widget<Text>(find.text('-0:42'));
+      final context = tester.element(find.byType(TimerCountdownWidget));
+      expect(text.style!.color, Theme.of(context).colorScheme.error);
+
+      // The minutes keep growing
+      await withClock(Clock.fixed(t0.add(const Duration(seconds: 23))), () async {
+        await pumpCountdown(tester);
+      });
+      expect(find.text('-1:05'), findsOneWidget);
+    });
+
     test('alerts once at the end, also from another page, and mirrors it to the watch', () {
       fakeAsync((time) {
         withClock(Clock(() => t0.add(time.elapsed)), () {

@@ -97,6 +97,28 @@ void main() {
     expect(captured, 7.55);
   });
 
+  testWidgets('keeps as many decimal digits as maxDecimalPlaces allows', (
+    WidgetTester tester,
+  ) async {
+    num? captured = 0;
+    await tester.pumpWidget(
+      wrap(
+        DecimalInputWidget(
+          value: null,
+          labelText: 'X',
+          maxDecimalPlaces: 3,
+          onChanged: (v) => captured = v,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), '1.8755');
+
+    expect(find.text('1.875'), findsOneWidget);
+    expect(captured, 1.875);
+  });
+
   testWidgets('reports null when the field is cleared', (WidgetTester tester) async {
     num? captured = 1;
     await tester.pumpWidget(

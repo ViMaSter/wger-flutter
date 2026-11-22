@@ -85,4 +85,39 @@ void main() {
       expect(theme.textTheme.headlineLarge?.fontFamily, wgerDisplayFont);
     });
   });
+
+  group('selected chips', () {
+    double contrast(Color a, Color b) {
+      final values = [a.computeLuminance(), b.computeLuminance()]..sort();
+      return (values.last + 0.05) / (values.first + 0.05);
+    }
+
+    for (final (name, theme) in [
+      ('light', wgerLightTheme),
+      ('dark', wgerDarkTheme),
+      ('light high contrast', wgerLightThemeHc),
+      ('dark high contrast', wgerDarkThemeHc),
+    ]) {
+      testWidgets('are primary with a readable label in the $name theme', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Scaffold(
+              body: ChoiceChip(label: const Text('Chip'), selected: true, onSelected: (_) {}),
+            ),
+          ),
+        );
+
+        final scheme = theme.colorScheme;
+        final background = theme.chipTheme.secondarySelectedColor!;
+        final label = DefaultTextStyle.of(tester.element(find.text('Chip'))).style.color!;
+        final checkmark = theme.chipTheme.checkmarkColor!;
+
+        expect(background, scheme.primary);
+        expect(theme.chipTheme.selectedColor, scheme.primary);
+        expect(contrast(background, label), greaterThanOrEqualTo(4.5));
+        expect(contrast(background, checkmark), greaterThanOrEqualTo(4.5));
+      });
+    }
+  });
 }

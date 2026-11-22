@@ -88,6 +88,12 @@ void main() {
       SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
       testExercises = getTestExercises();
       mockWorkoutLogRepo = MockWorkoutLogRepository();
+      when(
+        mockWorkoutLogRepo.getDistinctWeightsByExercise(
+          any,
+          weightUnitId: anyNamed('weightUnitId'),
+        ),
+      ).thenAnswer((_) async => []);
       storedLogs = [];
       // Mimic the real insert: the freshly minted id is written back to the log
       when(
@@ -121,6 +127,10 @@ void main() {
           testdata.getTestRoutine().filterLogsByExercise(exerciseId).map(asDriftLog).toList(),
         );
       });
+      // No earlier session unless a test says otherwise
+      when(
+        mockWorkoutLogRepo.getLastSessionLogsByExercise(any, before: anyNamed('before')),
+      ).thenAnswer((_) async => []);
       container = ProviderContainer.test(
         overrides: [workoutLogRepositoryProvider.overrideWithValue(mockWorkoutLogRepo)],
       );
@@ -737,6 +747,71 @@ void main() {
       await tester.tap(removeBtn);
       await tester.pumpAndSettle();
       expect(find.descendant(of: weightWidget, matching: find.text('1.25')), findsOneWidget);
+    });
+
+    group('progressive overload hint', () {
+      const hint = ValueKey('progressive-overload-hint');
+
+      void lastSessionWas(List<(num, num)> sets) {
+        when(
+          mockWorkoutLogRepo.getLastSessionLogsByExercise(any, before: anyNamed('before')),
+        ).thenAnswer(
+          (_) async => [
+            for (final (reps, weight) in sets)
+              Log(exerciseId: 1, repetitions: reps, weight: weight)
+                ..weightUnit = testdata.testWeightUnit1,
+          ],
+        );
+      }
+
+      void setSize(WidgetTester tester) {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+      }
+
+      testWidgets('is not shown without an earlier session', (tester) async {
+        setSize(tester);
+        seedLogPage(testdata.getTestRoutine());
+        await pumpLogPage(tester);
+
+        expect(find.byKey(hint), findsNothing);
+      });
+
+      testWidgets('choosing an option in its sheet pre-fills the set and shows the target', (
+        tester,
+      ) async {
+        setSize(tester);
+        lastSessionWas([(10, 20), (10, 20), (10, 20)]);
+        seedLogPage(testdata.getTestRoutine());
+        await pumpLogPage(tester);
+
+        expect(find.text('Choose a progressive overload target'), findsOneWidget);
+        await tester.tap(find.byKey(hint));
+        await tester.pumpAndSettle();
+        expect(find.text('Last time: 3 × (10 × 20 kg) = 600 kg'), findsOneWidget);
+
+        // The first option is one more repetition on the first set
+        await tester.tap(find.byKey(const ValueKey('overload-option-0')));
+        await tester.pumpAndSettle();
+        Navigator.of(tester.element(find.byKey(const ValueKey('overload-option-0')))).pop();
+        await tester.pumpAndSettle();
+
+        final gymLog = container.read(gymLogProvider)!;
+        expect(gymLog.repetitions, 11);
+        expect(gymLog.weight, 20);
+        expect(find.text('Target: 11 × 20 kg'), findsOneWidget);
+      });
+
+      testWidgets('is not shown when the setting is off', (tester) async {
+        setSize(tester);
+        lastSessionWas([(10, 20)]);
+        seedLogPage(testdata.getTestRoutine());
+        container.read(gymStateProvider.notifier).setProgressiveOverload(false);
+        await pumpLogPage(tester);
+
+        expect(find.byKey(hint), findsNothing);
+      });
     });
   });
 

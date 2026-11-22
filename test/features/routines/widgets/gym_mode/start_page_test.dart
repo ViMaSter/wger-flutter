@@ -141,6 +141,13 @@ void main() {
     await tester.tap(stickySwitch);
     await tester.pump();
 
+    // Toggle progressive overload, on by default
+    final overloadSwitch = find.byKey(const ValueKey('gym-mode-progressive-overload'));
+    expect(overloadSwitch, findsOneWidget);
+    await tester.ensureVisible(overloadSwitch);
+    await tester.tap(overloadSwitch);
+    await tester.pump();
+
     final notifier = container.read(gymStateProvider.notifier);
     expect(notifier.state.showExercisePages, isFalse);
     expect(notifier.state.showTimerPages, isFalse);
@@ -148,6 +155,7 @@ void main() {
     expect(notifier.state.showWorkoutDuration, isFalse);
     expect(notifier.state.showWorkoutNotification, isFalse);
     expect(notifier.state.stickySetValues, isTrue);
+    expect(notifier.state.progressiveOverload, isFalse);
   });
 
   testWidgets('The rest end alert works without the default countdown', (tester) async {

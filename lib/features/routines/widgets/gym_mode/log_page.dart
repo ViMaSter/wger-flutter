@@ -40,6 +40,7 @@ import 'package:wger/features/routines/widgets/forms/rir.dart';
 import 'package:wger/features/routines/widgets/forms/weight.dart';
 import 'package:wger/features/routines/widgets/gym_mode/linkified_comment.dart';
 import 'package:wger/features/routines/widgets/gym_mode/navigation.dart';
+import 'package:wger/features/routines/widgets/gym_mode/progressive_overload_card.dart';
 import 'package:wger/features/routines/widgets/plate_calculator.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
@@ -214,6 +215,7 @@ class _LogPageState extends ConsumerState<LogPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: LinkifiedComment(comments, textAlign: TextAlign.center),
           ),
+        if (gymState.progressiveOverload) ProgressiveOverloadHint(slotEntryPage),
         const SizedBox(height: 10),
 
         // Overriding the log scope from here is handled in a follow-up, the

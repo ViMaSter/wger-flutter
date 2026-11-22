@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
+import 'package:wger/features/routines/notifications/workout_reminder.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
 const WORKOUT_NOTIFICATION_ACTION_LOG_SET = 'log_set';
@@ -82,8 +83,16 @@ abstract class WorkoutNotificationService {
   /// Tells the user that an action was not carried out and the app is needed
   Future<void> showNotLogged(WorkoutNotificationLabels labels);
 
-  /// Removes the shown notification and a pending rest alarm
+  /// Removes the shown notification and a pending rest alarm, not the
+  /// reminder
   Future<void> cancelAll();
+
+  /// Schedules [reminder], replacing an earlier one. Separate from the rest
+  /// notification, so it survives [cancelAll].
+  Future<void> scheduleReminder(MissingEntriesReminder reminder);
+
+  /// Removes a pending or shown reminder
+  Future<void> cancelReminder();
 
   /// Lets the platform suspend the app again after an action
   Future<void> actionHandled();
@@ -119,13 +128,21 @@ class NoopWorkoutNotificationService implements WorkoutNotificationService {
   Future<void> cancelAll() async {}
 
   @override
+  Future<void> scheduleReminder(MissingEntriesReminder reminder) async {}
+
+  @override
+  Future<void> cancelReminder() async {}
+
+  @override
   Future<void> actionHandled() async {}
 }
 
 /// Android and iOS, via flutter_local_notifications
 class LocalWorkoutNotificationService implements WorkoutNotificationService {
   static const _notificationId = 1;
+  static const _reminderId = 2;
   static const _controlsChannelId = 'workout_controls';
+  static const _reminderChannelId = 'workout_reminder';
   static const _alarmChannelId = 'rest_alarm';
   static const _restEndCategory = 'workout_rest_end';
   static const _restEndNoLogCategory = 'workout_rest_end_no_log';
@@ -349,6 +366,37 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
     // notifications left behind by an earlier process
     await _initialized;
     await _plugin.cancel(id: _notificationId);
+  }
+
+  @override
+  Future<void> scheduleReminder(MissingEntriesReminder reminder) async {
+    // Initialized at app start, the reminder has no action labels of its own
+    await _initialized;
+    final exact = await canScheduleExactAlarms();
+    await _plugin.zonedSchedule(
+      id: _reminderId,
+      scheduledDate: tz.TZDateTime.from(reminder.at, tz.UTC),
+      title: reminder.title,
+      body: reminder.body,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          _reminderChannelId,
+          reminder.channelName,
+          category: AndroidNotificationCategory.reminder,
+          visibility: NotificationVisibility.public,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+    );
+  }
+
+  @override
+  Future<void> cancelReminder() async {
+    await _initialized;
+    await _plugin.cancel(id: _reminderId);
   }
 
   @override

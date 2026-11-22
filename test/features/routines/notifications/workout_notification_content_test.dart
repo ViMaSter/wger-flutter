@@ -232,7 +232,7 @@ void main() {
       expect(target.controls!.canLogSet, isFalse);
     });
 
-    test('"+30 s" only for a countdown, also once it is over', () {
+    test('"Extend rest" only for a countdown, also once it is over', () {
       final timer = timers().first;
       onPage(timer, restStartedAt: now, restEndsAt: now.add(const Duration(seconds: 90)));
       expect(build().controls!.canExtendRest, isTrue);
@@ -253,6 +253,43 @@ void main() {
       onPage(logs()[1]);
 
       expect(build(withControls: false), WorkoutNotificationTarget.none);
+    });
+  });
+
+  group('Rest extension', () {
+    test('Up to the maximum rest of the set, labelled as m:ss', () {
+      final timer = timers().first;
+      timer.setConfigData!
+        ..restTime = 60
+        ..maxRestTime = 150;
+      onPage(timer, restStartedAt: now);
+
+      final extension = restExtensionFor(notifier.state);
+
+      expect(extension, const Duration(seconds: 90));
+      expect(WorkoutNotificationLabels.of(i18n, restExtension: extension).extendRest, '+1:30');
+      expect(formatRestExtension(const Duration(seconds: 45)), '0:45');
+    });
+
+    test('A minute without a maximum above the minimum', () {
+      final timer = timers().first;
+      // The fixture rests 120 s, without a maximum
+      onPage(timer, restStartedAt: now);
+      expect(restExtensionFor(notifier.state), const Duration(minutes: 1));
+      expect(WorkoutNotificationLabels.of(i18n).extendRest, '+1:00');
+
+      timer.setConfigData!.maxRestTime = 120;
+      expect(restExtensionFor(notifier.state), const Duration(minutes: 1));
+    });
+
+    test('A minute away from a rest', () {
+      final page = logs()[1];
+      page.setConfigData!
+        ..restTime = 60
+        ..maxRestTime = 150;
+      onPage(page);
+
+      expect(restExtensionFor(notifier.state), const Duration(minutes: 1));
     });
   });
 

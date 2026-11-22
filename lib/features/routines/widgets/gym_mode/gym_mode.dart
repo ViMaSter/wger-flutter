@@ -44,6 +44,7 @@ import 'session_page.dart';
 import 'start_page.dart';
 import 'summary.dart';
 import 'timer.dart';
+import 'workout_list_page.dart';
 
 class GymMode extends ConsumerStatefulWidget {
   final GymModeArguments _args;
@@ -134,9 +135,64 @@ class _GymModeState extends ConsumerState<GymMode> {
     }
   }
 
+  /// In the list layout the PageView shows start, the workout list, session
+  /// and summary, while the gym state keeps its page per set. These map
+  /// between the two; in the default layout they are the same.
+  int _viewIndexOf(GymModeState state, int statePage) {
+    if (!state.listLayout) {
+      return statePage;
+    }
+    final page = state.pages.firstWhereOrNull(
+      (p) => p.type != PageType.set && p.pageIndex == statePage,
+    );
+    return switch (page?.type) {
+      null => statePage == 0 ? 0 : 1,
+      PageType.start => 0,
+      PageType.set => 1,
+      PageType.session => 2,
+      PageType.workoutSummary => 3,
+    };
+  }
+
+  int _statePageOf(GymModeState state, int viewIndex) {
+    if (!state.listLayout) {
+      return viewIndex;
+    }
+    int indexOf(PageType type) =>
+        state.pages.firstWhereOrNull((p) => p.type == type)?.pageIndex ?? 0;
+    switch (viewIndex) {
+      case 0:
+        return 0;
+      case 1:
+        // Stay on the set or rest the state is on, else the first open set
+        if (state.getSlotEntryPageByIndex() != null) {
+          return state.currentPage;
+        }
+        final open = state.pages
+            .expand((p) => p.slotPages)
+            .firstWhereOrNull(
+              (p) => p.type == SlotPageType.log && !state.progressOf(p.key).done,
+            );
+        return open?.pageIndex ?? indexOf(PageType.session);
+      case 2:
+        return indexOf(PageType.session);
+      default:
+        return indexOf(PageType.workoutSummary);
+    }
+  }
+
   List<Widget> _getContent(GymModeState state) {
     final gymState = ref.watch(gymStateProvider);
     final List<Widget> out = [];
+
+    if (state.listLayout) {
+      return [
+        StartPage(_controller),
+        WorkoutListPage(_controller),
+        SessionPage(_controller),
+        WorkoutSummary(_controller),
+      ];
+    }
 
     // Workout overview
     out.add(StartPage(_controller));
@@ -194,8 +250,9 @@ class _GymModeState extends ConsumerState<GymMode> {
   Widget build(BuildContext context) {
     ref.listen(gymStateProvider.select((s) => s.currentPage), (_, page) {
       // clear() also resets the page, but the summary has to stay visible
-      if (ref.read(gymStateProvider).isInitialized) {
-        _followCurrentPage(page);
+      final state = ref.read(gymStateProvider);
+      if (state.isInitialized) {
+        _followCurrentPage(_viewIndexOf(state, page));
       }
     });
 
@@ -209,7 +266,7 @@ class _GymModeState extends ConsumerState<GymMode> {
             child: StreamErrorIndicator(snapshot.error!, stacktrace: snapshot.stackTrace),
           );
         } else if (snapshot.connectionState == ConnectionState.done) {
-          final initialPage = snapshot.data!;
+          final initialPage = _viewIndexOf(ref.read(gymStateProvider), snapshot.data!);
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!_initialPageJumped && _controller.hasClients) {
@@ -226,7 +283,12 @@ class _GymModeState extends ConsumerState<GymMode> {
           return PageView(
             controller: _controller,
             onPageChanged: (page) {
-              ref.read(gymStateProvider.notifier).setCurrentPage(page);
+              final gymState = ref.read(gymStateProvider);
+              final statePage = _statePageOf(gymState, page);
+              // In the list layout the state may already be on a set of the list
+              if (!gymState.listLayout || statePage != gymState.currentPage) {
+                ref.read(gymStateProvider.notifier).setCurrentPage(statePage);
+              }
 
               // Check if the last page is reached
               if (page == children.length - 1) {

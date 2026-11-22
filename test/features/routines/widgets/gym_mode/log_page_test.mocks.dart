@@ -59,6 +59,44 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i2.WorkoutLogReposit
           as _i3.Future<_i4.Log?>);
 
   @override
+  _i3.Future<List<_i4.Log>> getLastSessionLogsByExercise(
+    int? exerciseId, {
+    required DateTime? before,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #getLastSessionLogsByExercise,
+              [exerciseId],
+              {#before: before},
+            ),
+            returnValue: _i3.Future<List<_i4.Log>>.value(<_i4.Log>[]),
+          )
+          as _i3.Future<List<_i4.Log>>);
+
+  @override
+  _i3.Future<List<num>> getDistinctWeightsByExercise(
+    int? exerciseId, {
+    int? weightUnitId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #getDistinctWeightsByExercise,
+              [exerciseId],
+              {#weightUnitId: weightUnitId},
+            ),
+            returnValue: _i3.Future<List<num>>.value(<num>[]),
+          )
+          as _i3.Future<List<num>>);
+
+  @override
+  _i3.Future<List<_i4.Log>> resubmitMissing(List<_i4.Log>? logs) =>
+      (super.noSuchMethod(
+            Invocation.method(#resubmitMissing, [logs]),
+            returnValue: _i3.Future<List<_i4.Log>>.value(<_i4.Log>[]),
+          )
+          as _i3.Future<List<_i4.Log>>);
+
+  @override
   _i3.Future<List<_i4.Log>> getLogsByIds(List<String>? ids) =>
       (super.noSuchMethod(
             Invocation.method(#getLogsByIds, [ids]),

@@ -28,8 +28,35 @@ import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/validators.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
-/// How much "+30 s" adds to a rest
-const REST_EXTENSION = Duration(seconds: 30);
+/// What "extend rest" adds when the set has no span between minimum and
+/// maximum rest, see [restExtensionFor]
+const DEFAULT_REST_EXTENSION = Duration(minutes: 1);
+
+/// What "extend rest" adds to the rest of the timer page [restPage]: up to the
+/// maximum rest of its set when that is longer than the minimum, else
+/// [DEFAULT_REST_EXTENSION]
+Duration restExtensionForPage(SlotPageEntry? restPage) {
+  final config = restPage?.setConfigData;
+  final minimum = config?.restTime;
+  final maximum = config?.maxRestTime;
+  if (minimum == null || maximum == null || maximum <= minimum) {
+    return DEFAULT_REST_EXTENSION;
+  }
+  return Duration(seconds: (maximum - minimum).round());
+}
+
+/// What "extend rest" adds to the running rest of [state], the one on the
+/// current timer page that the rest alarm is about
+Duration restExtensionFor(GymModeState state) {
+  final current = state.isInitialized ? state.getSlotEntryPageByIndex() : null;
+  return restExtensionForPage(current?.type == SlotPageType.timer ? current : null);
+}
+
+/// [extension] as m:ss, e.g. 1:30
+String formatRestExtension(Duration extension) {
+  final seconds = extension.inSeconds;
+  return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+}
 
 /// Identifies the gym session and the slot pages a notification action targets
 class WorkoutNotificationPayload extends Equatable {
@@ -212,14 +239,17 @@ class WorkoutNotificationLabels extends Equatable {
     required this.notLoggedBody,
   });
 
-  WorkoutNotificationLabels.of(AppLocalizations i18n)
-    : logSet = i18n.workoutNotificationLogSet,
-      skipRest = i18n.workoutNotificationSkipRest,
-      extendRest = i18n.workoutNotificationExtendRest(REST_EXTENSION.inSeconds),
-      controlsChannel = i18n.workoutNotificationChannel,
-      alarmChannel = i18n.workoutNotificationAlarmChannel,
-      notLoggedTitle = i18n.workoutNotificationNotLoggedTitle,
-      notLoggedBody = i18n.workoutNotificationNotLoggedBody;
+  /// [restExtension] is what "extend rest" adds, see [restExtensionFor]
+  WorkoutNotificationLabels.of(
+    AppLocalizations i18n, {
+    Duration restExtension = DEFAULT_REST_EXTENSION,
+  }) : logSet = i18n.workoutNotificationLogSet,
+       skipRest = i18n.workoutNotificationSkipRest,
+       extendRest = i18n.workoutNotificationExtendRestBy(formatRestExtension(restExtension)),
+       controlsChannel = i18n.workoutNotificationChannel,
+       alarmChannel = i18n.workoutNotificationAlarmChannel,
+       notLoggedTitle = i18n.workoutNotificationNotLoggedTitle,
+       notLoggedBody = i18n.workoutNotificationNotLoggedBody;
 
   @override
   List<Object?> get props => [

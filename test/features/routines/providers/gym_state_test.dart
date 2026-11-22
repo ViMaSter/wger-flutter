@@ -36,15 +36,18 @@ import 'package:wger/features/routines/models/added_exercise.dart';
 import 'package:wger/features/routines/models/day.dart';
 import 'package:wger/features/routines/models/day_data.dart';
 import 'package:wger/features/routines/models/log.dart';
+import 'package:wger/features/routines/models/overload_option.dart';
 import 'package:wger/features/routines/models/page_progress.dart';
 import 'package:wger/features/routines/models/routine.dart';
 import 'package:wger/features/routines/models/set_config_data.dart';
 import 'package:wger/features/routines/models/slot_data.dart';
+import 'package:wger/features/routines/models/workout_progress.dart';
 import 'package:wger/features/routines/providers/gym_log_notifier.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/routines_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_repository.dart';
+import 'package:wger/powersync/server_confirmation.dart';
 
 import '../../../../test_data/exercises.dart';
 import '../../../../test_data/routines.dart';
@@ -1255,6 +1258,478 @@ void main() {
     });
   });
 
+  group('GymStateNotifier progressive overload', () {
+    // Slot 1 (exercise 1) has its log pages at 2, 4 and 6, planned 3 × 100,
+    // see the sticky set values group
+
+    late MockWorkoutLogRepository logRepo;
+
+    setUp(() {
+      logRepo = MockWorkoutLogRepository();
+      when(logRepo.getLatestLogByExercise(any)).thenAnswer((_) async => null);
+
+      final initialState = notifier.state;
+      container = ProviderContainer.test(
+        overrides: [workoutLogRepositoryProvider.overrideWithValue(logRepo)],
+      );
+      notifier = container.read(gymStateProvider.notifier)..state = initialState;
+    });
+
+    int slotEntryIdOfPage(int pageIndex) =>
+        notifier.state.getSlotEntryPageByIndex(pageIndex)!.setConfigData!.slotEntryId;
+
+    const option = OverloadOption(
+      type: OverloadType.moreSets,
+      sets: [
+        OverloadSet(weight: 110, repetitions: 5),
+        OverloadSet(weight: 110, repetitions: 6),
+        OverloadSet(weight: 110, repetitions: 7),
+        OverloadSet(weight: 105, repetitions: 8),
+      ],
+    );
+
+    test('Is enabled by default, disabling it persists', () async {
+      expect(GymModeState().progressiveOverload, isTrue);
+
+      notifier.setProgressiveOverload(false);
+      await pumpEventQueue();
+
+      expect(notifier.state.progressiveOverload, isFalse);
+      expect(await PreferenceHelper.asyncPref.getBool(PREFS_PROGRESSIVE_OVERLOAD), isFalse);
+    });
+
+    test('Pre-fills each set with the set of the chosen option at its position', () async {
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), option);
+
+      notifier.setCurrentPage(4);
+      await pumpEventQueue();
+      expect(container.read(gymLogProvider)!.repetitions, 6);
+      expect(container.read(gymLogProvider)!.weight, 110);
+
+      notifier.setCurrentPage(6);
+      await pumpEventQueue();
+      expect(container.read(gymLogProvider)!.repetitions, 7);
+    });
+
+    test('Another set on the logged last page is the extra set of the option', () async {
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), option);
+      notifier.setCurrentPage(6);
+      await pumpEventQueue();
+      notifier.markSlotPageAsDone(notifier.state.getSlotEntryPageByIndex(6)!.key, isDone: true);
+
+      await notifier.startNewEntry();
+
+      expect(container.read(gymLogProvider)!.repetitions, 8);
+      expect(container.read(gymLogProvider)!.weight, 105);
+    });
+
+    test('Rounds a weight to the two decimals a log stores', () async {
+      notifier.selectOverloadOption(
+        slotEntryIdOfPage(2),
+        const OverloadOption(
+          type: OverloadType.heavier,
+          sets: [OverloadSet(weight: 1.875, repetitions: 12)],
+        ),
+      );
+
+      notifier.setCurrentPage(2);
+      await pumpEventQueue();
+
+      expect(container.read(gymLogProvider)!.weight, 1.88);
+    });
+
+    test('The chosen option wins over the sticky set values', () async {
+      notifier.setStickySetValues(true);
+      when(logRepo.getLatestLogByExercise(1)).thenAnswer(
+        (_) async => Log(exerciseId: 1, repetitions: 1, weight: 1),
+      );
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), option);
+
+      notifier.setCurrentPage(2);
+      await pumpEventQueue();
+
+      expect(container.read(gymLogProvider)!.repetitions, 5);
+      verifyNever(logRepo.getLatestLogByExercise(any));
+    });
+
+    test('Choosing re-fills the current set, going back to planned clears it', () async {
+      notifier.setCurrentPage(2);
+      await pumpEventQueue();
+      expect(container.read(gymLogProvider)!.repetitions, 3);
+
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), option);
+      await pumpEventQueue();
+      expect(container.read(gymLogProvider)!.repetitions, 5);
+
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), null);
+      await pumpEventQueue();
+      expect(notifier.state.selectedOverload, isEmpty);
+      expect(container.read(gymLogProvider)!.repetitions, 3);
+      expect(container.read(gymLogProvider)!.weight, 100);
+    });
+
+    test('A chosen option is ignored while the setting is off', () async {
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), option);
+      notifier.setProgressiveOverload(false);
+
+      notifier.setCurrentPage(4);
+      await pumpEventQueue();
+
+      expect(container.read(gymLogProvider)!.repetitions, 3);
+    });
+
+    test('Clearing the workout forgets the chosen options', () {
+      notifier.selectOverloadOption(slotEntryIdOfPage(2), option);
+
+      notifier.clear();
+
+      expect(notifier.state.selectedOverload, isEmpty);
+    });
+  });
+
+  group('GymStateNotifier list layout', () {
+    // Slot 1 (exercise 1): log pages 2, 4, 6 with timer pages 3, 5, 7
+
+    late MockWorkoutLogRepository logRepo;
+    late List<Log> added;
+
+    setUp(() {
+      added = [];
+      logRepo = MockWorkoutLogRepository();
+      when(logRepo.getLatestLogByExercise(any)).thenAnswer((_) async => null);
+      var count = 0;
+      when(logRepo.addLocalDrift(any, dayId: anyNamed('dayId'))).thenAnswer((invocation) async {
+        added.add((invocation.positionalArguments[0] as Log)..id = 'log-${++count}');
+      });
+      when(logRepo.updateLocalDrift(any)).thenAnswer((_) async {});
+      when(logRepo.deleteLocalDrift(any)).thenAnswer((_) async {});
+
+      final initialState = notifier.state;
+      container = ProviderContainer.test(
+        overrides: [workoutLogRepositoryProvider.overrideWithValue(logRepo)],
+      );
+      notifier = container.read(gymStateProvider.notifier)..state = initialState;
+    });
+
+    String keyOf(int pageIndex) => notifier.state.getSlotEntryPageByIndex(pageIndex)!.key;
+
+    test('Groups the log pages by slot entry, in order', () {
+      // The shared fixture uses one slot entry for everything, give the
+      // second slot its own
+      final routine = getTestRoutine();
+      for (final day in routine.dayDataGym) {
+        for (final config in day.slots.skip(1).expand((slot) => slot.setConfigs)) {
+          config.slotEntryId = 2;
+        }
+      }
+      notifier.state = notifier.state.copyWith(routine: routine);
+      notifier.calculatePages();
+
+      final blocks = notifier.state.logPagesBySlotEntry;
+
+      expect(blocks.map((b) => b.map((p) => p.pageIndex)), [
+        [2, 4, 6],
+        [9, 11, 13],
+      ]);
+    });
+
+    test('Is the default, turning it off persists', () async {
+      expect(GymModeState().listLayout, isTrue);
+
+      notifier.setListLayout(false);
+      await pumpEventQueue();
+
+      expect(notifier.state.listLayout, isFalse);
+      expect(await PreferenceHelper.asyncPref.getBool(PREFS_LIST_LAYOUT), isFalse);
+    });
+
+    test('Logging a set saves its values, marks it done and starts the rest after it', () async {
+      await notifier.logSetAt(keyOf(4), repetitions: 9, weight: 42.5);
+
+      expect(added.single.repetitions, 9);
+      expect(added.single.weight, 42.5);
+      expect(
+        added.single.slotEntryId,
+        notifier.state.getSlotEntryPageByIndex(4)!.setConfigData!.slotEntryId,
+      );
+      expect(notifier.state.progressOf(keyOf(4)).done, isTrue);
+      expect(notifier.state.progressOf(keyOf(4)).loggedEntry!.id, 'log-1');
+      expect(notifier.state.currentPage, 5, reason: 'The rest after the set');
+      expect(notifier.state.restStartedAt, isNotNull);
+    });
+
+    test('Logging a set again corrects it without a new row or rest', () async {
+      await notifier.logSetAt(keyOf(4), repetitions: 9, weight: 42.5);
+      notifier.setCurrentPage(0);
+
+      await notifier.logSetAt(keyOf(4), repetitions: 10, weight: 42.5);
+
+      expect(added, hasLength(1));
+      final updated = verify(logRepo.updateLocalDrift(captureAny)).captured.single as Log;
+      expect(updated.id, 'log-1');
+      expect(updated.repetitions, 10);
+      expect(notifier.state.currentPage, 0);
+    });
+
+    test('Unlogging a set deletes its row and clears it', () async {
+      await notifier.logSetAt(keyOf(2), repetitions: 9, weight: 42.5);
+
+      await notifier.unlogSetAt(keyOf(2));
+
+      verify(logRepo.deleteLocalDrift('log-1'));
+      expect(notifier.state.progressOf(keyOf(2)).done, isFalse);
+      expect(notifier.state.progressOf(keyOf(2)).loggedEntry, isNull);
+    });
+
+    test('Extra sets are logged for the slot entry and can be removed', () async {
+      final slotEntryId = notifier.state.getSlotEntryPageByIndex(2)!.setConfigData!.slotEntryId;
+
+      await notifier.logExtraSet(slotEntryId, repetitions: 8, weight: 40);
+      await notifier.logExtraSet(slotEntryId, repetitions: 7, weight: 40);
+
+      expect(added.map((l) => (l.repetitions, l.slotEntryId)), [
+        (8, slotEntryId),
+        (7, slotEntryId),
+      ]);
+      expect(notifier.state.extraLogs[slotEntryId]!.map((l) => l.repetitions), [8, 7]);
+
+      await notifier.removeExtraSet(slotEntryId, 0);
+
+      verify(logRepo.deleteLocalDrift('log-1'));
+      expect(notifier.state.extraLogs[slotEntryId]!.map((l) => l.repetitions), [7]);
+
+      notifier.clear();
+      expect(notifier.state.extraLogs, isEmpty);
+    });
+
+    test('A default option does not replace a choice, also not "as planned"', () {
+      final slotEntryId = notifier.state.getSlotEntryPageByIndex(2)!.setConfigData!.slotEntryId;
+      const option = OverloadOption(
+        type: OverloadType.moreReps,
+        sets: [OverloadSet(weight: 100, repetitions: 4)],
+      );
+
+      notifier.applyDefaultOverload(slotEntryId, option);
+      expect(notifier.state.selectedOverload[slotEntryId], option);
+
+      notifier.selectOverloadOption(slotEntryId, null);
+      notifier.applyDefaultOverload(slotEntryId, option);
+      expect(notifier.state.selectedOverload[slotEntryId], isNull);
+
+      notifier.clear();
+      notifier.applyDefaultOverload(slotEntryId, option);
+      expect(notifier.state.selectedOverload[slotEntryId], option);
+    });
+  });
+
+  group('GymStateNotifier list layout progress', () {
+    late MockWorkoutLogRepository logRepo;
+    late bool confirmed;
+    late Completer<void>? confirmationGate;
+
+    ProviderContainer newContainer() => ProviderContainer.test(
+      overrides: [
+        workoutLogRepositoryProvider.overrideWithValue(logRepo),
+        serverConfirmationProvider.overrideWithValue(() async {
+          await confirmationGate?.future;
+          return confirmed;
+        }),
+      ],
+    );
+
+    setUp(() {
+      confirmed = true;
+      confirmationGate = null;
+      logRepo = MockWorkoutLogRepository();
+      var count = 0;
+      when(logRepo.addLocalDrift(any, dayId: anyNamed('dayId'))).thenAnswer((invocation) async {
+        (invocation.positionalArguments[0] as Log).id = 'log-${++count}';
+      });
+      when(logRepo.getLogsByIds(any)).thenAnswer((_) async => []);
+      when(logRepo.getLatestLogByExercise(any)).thenAnswer((_) async => null);
+      when(logRepo.resubmitMissing(any)).thenAnswer((_) async => []);
+    });
+
+    Future<GymStateNotifier> opened(ProviderContainer container) async {
+      final gymNotifier = container.read(gymStateProvider.notifier);
+      await gymNotifier.open(getTestRoutine(), 1, 1);
+      return gymNotifier;
+    }
+
+    String logKey(GymStateNotifier gymNotifier, int index) => gymNotifier.state.pages
+        .expand((p) => p.slotPages)
+        .where((p) => p.type == SlotPageType.log)
+        .elementAt(index)
+        .key;
+
+    const option = OverloadOption(
+      type: OverloadType.heavier,
+      sets: [OverloadSet(weight: 105, repetitions: 3)],
+      requiredRepetitions: 9,
+    );
+
+    test('Stores the routine and the number of planned sets', () async {
+      final gymNotifier = await opened(newContainer());
+      gymNotifier.setCurrentPage(2);
+      await pumpEventQueue();
+
+      final stored = WorkoutProgress.fromJson(
+        json.decode((await PreferenceHelper.asyncPref.getString(PREFS_WORKOUT_PROGRESS))!)
+            as Map<String, dynamic>,
+      );
+      expect(stored.routineId, getTestRoutine().id);
+      expect(
+        stored.totalSets,
+        gymNotifier.state.pages
+            .expand((p) => p.slotPages)
+            .where((p) => p.type == SlotPageType.log)
+            .length,
+      );
+    });
+
+    test('Restores the chosen option, the extra sets and the entered values', () async {
+      final first = await opened(newContainer());
+      final slotEntryId = first.state
+          .getSlotPageByKey(logKey(first, 0))!
+          .setConfigData!
+          .slotEntryId;
+      first.selectOverloadOption(slotEntryId, option);
+      await first.logExtraSet(slotEntryId, repetitions: 7, weight: 95);
+      first.setRowDraft(logKey(first, 1), weight: 102.5, repetitions: 4);
+      await pumpEventQueue();
+
+      final restarted = await opened(newContainer());
+
+      expect(restarted.state.selectedOverload[slotEntryId], option);
+      expect(restarted.state.overloadDecided, {slotEntryId});
+      final extra = restarted.state.extraLogs[slotEntryId]!.single;
+      expect((extra.id, extra.repetitions, extra.weight), ('log-1', 7, 95));
+      expect(restarted.state.rowDrafts[logKey(restarted, 1)], (weight: 102.5, repetitions: 4));
+    });
+
+    test('Logging a set forgets the values entered for it', () async {
+      final gymNotifier = await opened(newContainer());
+      final key = logKey(gymNotifier, 0);
+      gymNotifier.setRowDraft(key, weight: 90, repetitions: 5);
+
+      await gymNotifier.logSetAt(key, repetitions: 5, weight: 90);
+
+      expect(gymNotifier.state.rowDrafts, isEmpty);
+    });
+
+    test('A continued workout sends the sets again the server does not have', () async {
+      final first = await opened(newContainer());
+      await first.logSetAt(logKey(first, 0), repetitions: 3, weight: 100);
+      final slotEntryId = first.state
+          .getSlotPageByKey(logKey(first, 0))!
+          .setConfigData!
+          .slotEntryId;
+      await first.logExtraSet(slotEntryId, repetitions: 7, weight: 95);
+      await pumpEventQueue();
+      verifyNever(logRepo.resubmitMissing(any));
+
+      await opened(newContainer());
+      await pumpEventQueue();
+
+      final checked = verify(logRepo.resubmitMissing(captureAny)).captured.single as List<Log>;
+      expect(checked.map((log) => log.id), unorderedEquals(['log-1', 'log-2']));
+      expect(checked.firstWhere((log) => log.id == 'log-1').repetitions, 3);
+    });
+
+    test('Nothing is sent again while the server can not confirm', () async {
+      final gymNotifier = await opened(newContainer());
+      await gymNotifier.logSetAt(logKey(gymNotifier, 0), repetitions: 3, weight: 100);
+      confirmed = false;
+
+      await gymNotifier.verifyLoggedSets();
+
+      verifyNever(logRepo.resubmitMissing(any));
+    });
+
+    test('The stored number of planned sets leaves out added exercises', () async {
+      final gymNotifier = await opened(newContainer());
+      final planned = gymNotifier.state.pages
+          .expand((p) => p.slotPages)
+          .where((p) => p.type == SlotPageType.log)
+          .length;
+      gymNotifier
+        ..state = gymNotifier.state.copyWith(
+          addedExercises: [
+            AddedExercise(
+              afterPageKey: gymNotifier.state.pages[1].key,
+              exercise: testSquats,
+              slotEntryId: 1,
+            ),
+          ],
+        )
+        ..calculatePages();
+      expect(gymNotifier.state.requiredLogPages.length, planned);
+      expect(
+        gymNotifier.state.pages.expand((p) => p.slotPages).where((p) => p.type == SlotPageType.log),
+        hasLength(planned + 4),
+      );
+      gymNotifier.setCurrentPage(2);
+      await pumpEventQueue();
+
+      final stored = WorkoutProgress.fromJson(
+        json.decode((await PreferenceHelper.asyncPref.getString(PREFS_WORKOUT_PROGRESS))!)
+            as Map<String, dynamic>,
+      );
+      expect(stored.totalSets, planned);
+    });
+
+    test('Finishing the workout forgets its values, the session still has its data', () async {
+      final first = await opened(newContainer());
+      final start = first.state.workoutStart;
+      final key = logKey(first, 0);
+      await first.logSetAt(key, repetitions: 3, weight: 100);
+      final slotEntryId = first.state.getSlotPageByKey(key)!.setConfigData!.slotEntryId;
+      first.selectOverloadOption(slotEntryId, option);
+      await first.logExtraSet(slotEntryId, repetitions: 7, weight: 95);
+      first.setRowDraft(logKey(first, 1), weight: 102.5, repetitions: 4);
+      await pumpEventQueue();
+      expect(await PreferenceHelper.asyncPref.getString(PREFS_WORKOUT_PROGRESS), isNotNull);
+
+      await first.finishWorkout();
+
+      expect(await PreferenceHelper.asyncPref.getString(PREFS_WORKOUT_PROGRESS), isNull);
+      expect(first.state.progress, isEmpty);
+      expect(first.state.extraLogs, isEmpty);
+      expect(first.state.rowDrafts, isEmpty);
+      expect(first.state.selectedOverload, isEmpty);
+      // What the session page saves the session with
+      expect(first.state.routine.id, getTestRoutine().id);
+      expect(first.state.dayId, 1);
+      expect(first.state.workoutStart, start);
+
+      // Leaving the page doesn't store the progress again
+      first.setCurrentPage(2);
+      await pumpEventQueue();
+      expect(await PreferenceHelper.asyncPref.getString(PREFS_WORKOUT_PROGRESS), isNull);
+
+      // Opening the workout again, also in the same app run, starts fresh
+      for (final again in [first, await opened(newContainer())]) {
+        expect(await again.open(getTestRoutine(), 1, 1), 0);
+        expect(again.state.progress, isEmpty);
+        expect(again.state.extraLogs, isEmpty);
+        expect(again.state.rowDrafts, isEmpty);
+      }
+    });
+
+    test('Nothing is sent again when the workout ended meanwhile', () async {
+      final gymNotifier = await opened(newContainer());
+      await gymNotifier.logSetAt(logKey(gymNotifier, 0), repetitions: 3, weight: 100);
+      confirmationGate = Completer<void>();
+
+      final verifying = gymNotifier.verifyLoggedSets();
+      gymNotifier.clear();
+      confirmationGate!.complete();
+      await verifying;
+
+      verifyNever(logRepo.resubmitMissing(any));
+    });
+  });
+
   group('GymStateNotifier.startWorkout', () {
     test('Resets the workout start time to now', () {
       // Arrange
@@ -1291,6 +1766,90 @@ void main() {
       expect(notifier.state.workoutStart, DateTime(2024, 5, 2, 9, 15));
       expect(notifier.state.progress, isEmpty);
       expect(notifier.state.addedExercises, isEmpty);
+    });
+  });
+
+  group('GymModeState required sets', () {
+    // Slot 1 (slot entry 1): log pages 2, 4, 6; slot 2 (slot entry 2): 9, 11, 13
+    setUp(() {
+      final routine = getTestRoutine();
+      for (final day in routine.dayDataGym) {
+        for (final config in day.slots.skip(1).expand((slot) => slot.setConfigs)) {
+          config.slotEntryId = 2;
+        }
+      }
+      notifier.state = notifier.state.copyWith(routine: routine);
+      notifier.calculatePages();
+    });
+
+    String keyOf(int pageIndex) => notifier.state.getSlotEntryPageByIndex(pageIndex)!.key;
+
+    void markDone(List<int> pageIndexes) {
+      notifier.state = notifier.state.copyWith(
+        progress: {for (final i in pageIndexes) keyOf(i): const PageProgress(done: true)},
+      );
+    }
+
+    test('Lists the exercises with planned sets left', () {
+      markDone([2, 4, 9]);
+      final state = notifier.state;
+
+      expect(state.requiredDone(1), isFalse);
+      expect(state.allRequiredDone, isFalse);
+      expect(
+        state.missingRequired.map((m) => (m.slotEntryId, m.exercise.id, m.planned, m.logged)),
+        [
+          (1, state.getSlotEntryPageByIndex(2)!.setConfigData!.exercise.id, 3, 2),
+          (2, state.getSlotEntryPageByIndex(9)!.setConfigData!.exercise.id, 3, 1),
+        ],
+      );
+
+      markDone([2, 4, 6, 9]);
+      expect(notifier.state.requiredDone(1), isTrue);
+      expect(notifier.state.requiredDone(2), isFalse);
+      expect(notifier.state.missingRequired.map((m) => m.slotEntryId), [2]);
+    });
+
+    test('Is complete with the planned sets, more sets last time or added ones are optional', () {
+      markDone([2, 4, 6, 9, 11, 13]);
+      notifier.state = notifier.state.copyWith(
+        // Last time had a set more than planned
+        selectedOverload: {
+          1: const OverloadOption(
+            type: OverloadType.moreSets,
+            sets: [
+              OverloadSet(weight: 100, repetitions: 3),
+              OverloadSet(weight: 100, repetitions: 3),
+              OverloadSet(weight: 100, repetitions: 3),
+              OverloadSet(weight: 100, repetitions: 3),
+            ],
+          ),
+        },
+        addedExercises: [
+          AddedExercise(afterPageKey: 'slot:1:1', exercise: testSquats, slotEntryId: 1),
+        ],
+      );
+      notifier.calculatePages();
+      expect(
+        notifier.state.pages.expand((p) => p.slotPages).any((p) => p.key.startsWith('added:')),
+        isTrue,
+      );
+
+      expect(notifier.state.requiredDone(1), isTrue);
+      expect(notifier.state.allRequiredDone, isTrue);
+      expect(notifier.state.missingRequired, isEmpty);
+    });
+
+    test('Extra sets do not make up for missing planned ones', () {
+      markDone([2, 4, 9, 11, 13]);
+      notifier.state = notifier.state.copyWith(
+        extraLogs: {
+          1: [Log(exerciseId: 1, repetitions: 3, weight: 100)],
+        },
+      );
+
+      expect(notifier.state.requiredDone(1), isFalse);
+      expect(notifier.state.missingRequired.single.logged, 2);
     });
   });
 
@@ -1516,7 +2075,7 @@ void main() {
       );
     });
 
-    test('Restores the rest of the progress when the logs can not be read', () async {
+    test('Restores the progress from the stored values when the logs can not be read', () async {
       final logPage = notifier.state.pages[1].slotPages[1];
       final timerKey = notifier.state.pages[1].slotPages[2].key;
       final log = Log(id: 'log-1', exerciseId: 1, date: DateTime(2026, 7, 26));
@@ -1531,7 +2090,10 @@ void main() {
 
       expect(await openDay1(restarted), 3);
       expect(restarted.state.progressOf(logPage.key).done, isTrue);
-      expect(restarted.state.progressOf(logPage.key).loggedEntry, isNull);
+      // From the values stored with the progress
+      final restored = restarted.state.progressOf(logPage.key).loggedEntry!;
+      expect(restored.id, 'log-1');
+      expect(restored.date, DateTime(2026, 7, 26));
       expect(restarted.state.progressOf(timerKey).timerStartedAt, DateTime(2026, 7, 26, 18, 30));
     });
 

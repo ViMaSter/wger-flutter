@@ -21,6 +21,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:wger/features/exercises/widgets/exercises.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/widgets/gym_mode/navigation.dart';
+import 'package:wger/features/routines/widgets/gym_mode/progressive_overload_card.dart';
 
 class ExerciseOverview extends ConsumerWidget {
   final _logger = Logger('ExerciseOverview');
@@ -34,7 +35,8 @@ class ExerciseOverview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final page = ref.watch(gymStateProvider).getSlotPageByKey(slotKey);
+    final gymState = ref.watch(gymStateProvider);
+    final page = gymState.getSlotPageByKey(slotKey);
 
     if (page == null) {
       _logger.info(
@@ -54,7 +56,12 @@ class ExerciseOverview extends ConsumerWidget {
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: ExerciseDetail(exercise),
+              child: Column(
+                children: [
+                  if (gymState.progressiveOverload) ProgressiveOverloadCard(page.setConfigData!),
+                  ExerciseDetail(exercise),
+                ],
+              ),
             ),
           ),
         ),

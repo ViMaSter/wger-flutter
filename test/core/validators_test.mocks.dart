@@ -1726,6 +1726,226 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String get progressiveOverload =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverload),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverload),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadHelp =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadHelp),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadHelp),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadIntro =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadIntro),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadIntro),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadFirstTime =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadFirstTime),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadFirstTime),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadMoreReps =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadMoreReps),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadMoreReps),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadHeavier =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadHeavier),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadHeavier),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadMoreSets =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadMoreSets),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadMoreSets),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadAsPlanned =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadAsPlanned),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadAsPlanned),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadAsBefore =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadAsBefore),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadAsBefore),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadAtMaxReps =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadAtMaxReps),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadAtMaxReps),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadNoWeights =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadNoWeights),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadNoWeights),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadChoose =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadChoose),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadChoose),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadExtraSet =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadExtraSet),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadExtraSet),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeListLayout =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeListLayout),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeListLayout),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeListLayoutHelp =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeListLayoutHelp),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeListLayoutHelp),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadMoreRepsShort =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadMoreRepsShort),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadMoreRepsShort),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadMoreSetsShort =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadMoreSetsShort),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadMoreSetsShort),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeSkipRest =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeSkipRest),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeSkipRest),
+            ),
+          )
+          as String);
+
+  @override
+  String get availableWeights =>
+      (super.noSuchMethod(
+            Invocation.getter(#availableWeights),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#availableWeights),
+            ),
+          )
+          as String);
+
+  @override
+  String get availableWeightsHelp =>
+      (super.noSuchMethod(
+            Invocation.getter(#availableWeightsHelp),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#availableWeightsHelp),
+            ),
+          )
+          as String);
+
+  @override
   String get jumpTo =>
       (super.noSuchMethod(
             Invocation.getter(#jumpTo),
@@ -4145,6 +4365,28 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String get personalExercisesWarningTitle =>
+      (super.noSuchMethod(
+            Invocation.getter(#personalExercisesWarningTitle),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#personalExercisesWarningTitle),
+            ),
+          )
+          as String);
+
+  @override
+  String get personalExercisesWarningBody =>
+      (super.noSuchMethod(
+            Invocation.getter(#personalExercisesWarningBody),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#personalExercisesWarningBody),
+            ),
+          )
+          as String);
+
+  @override
   String get translation =>
       (super.noSuchMethod(
             Invocation.getter(#translation),
@@ -5688,6 +5930,303 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String get gymModeTotal =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeTotal),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeTotal),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeFillLowerWeightHelp =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeFillLowerWeightHelp),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeFillLowerWeightHelp),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeFillNeedWeights =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeFillNeedWeights),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeFillNeedWeights),
+            ),
+          )
+          as String);
+
+  @override
+  String get finishWorkout =>
+      (super.noSuchMethod(
+            Invocation.getter(#finishWorkout),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#finishWorkout),
+            ),
+          )
+          as String);
+
+  @override
+  String get finishWorkoutConfirmTitle =>
+      (super.noSuchMethod(
+            Invocation.getter(#finishWorkoutConfirmTitle),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#finishWorkoutConfirmTitle),
+            ),
+          )
+          as String);
+
+  @override
+  String get finishWorkoutConfirmBody =>
+      (super.noSuchMethod(
+            Invocation.getter(#finishWorkoutConfirmBody),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#finishWorkoutConfirmBody),
+            ),
+          )
+          as String);
+
+  @override
+  String get finishWorkoutPlannedSets =>
+      (super.noSuchMethod(
+            Invocation.getter(#finishWorkoutPlannedSets),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#finishWorkoutPlannedSets),
+            ),
+          )
+          as String);
+
+  @override
+  String get finishWorkoutLoggedSets =>
+      (super.noSuchMethod(
+            Invocation.getter(#finishWorkoutLoggedSets),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#finishWorkoutLoggedSets),
+            ),
+          )
+          as String);
+
+  @override
+  String get finishWorkoutConfirm =>
+      (super.noSuchMethod(
+            Invocation.getter(#finishWorkoutConfirm),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#finishWorkoutConfirm),
+            ),
+          )
+          as String);
+
+  @override
+  String get workoutReminderTitle =>
+      (super.noSuchMethod(
+            Invocation.getter(#workoutReminderTitle),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#workoutReminderTitle),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfile =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfile),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfile),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileNone =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileNone),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileNone),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileCreate =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileCreate),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileCreate),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileEdit =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileEdit),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileEdit),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileName =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileName),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileName),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileKind =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileKind),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileKind),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileKindPlates =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileKindPlates),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileKindPlates),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileKindFixed =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileKindFixed),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileKindFixed),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileKindLinear =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileKindLinear),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileKindLinear),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileBar =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileBar),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileBar),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileStart =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileStart),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileStart),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileStep =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileStep),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileStep),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileMax =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileMax),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileMax),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfilePlates =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfilePlates),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfilePlates),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileFixedWeights =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileFixedWeights),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileFixedWeights),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileBonus =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileBonus),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileBonus),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfileAssign =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfileAssign),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfileAssign),
+            ),
+          )
+          as String);
+
+  @override
   String certsNotVerifiedDetail(String? host) =>
       (super.noSuchMethod(
             Invocation.method(#certsNotVerifiedDetail, [host]),
@@ -5765,12 +6304,134 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String workoutNotificationExtendRest(int? seconds) =>
+      (super.noSuchMethod(
+            Invocation.method(#workoutNotificationExtendRest, [seconds]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#workoutNotificationExtendRest, [seconds]),
+            ),
+          )
+          as String);
+
+  @override
   String durationHoursMinutes(int? hours, int? minutes) =>
       (super.noSuchMethod(
             Invocation.method(#durationHoursMinutes, [hours, minutes]),
             returnValue: _i3.dummyValue<String>(
               this,
               Invocation.method(#durationHoursMinutes, [hours, minutes]),
+            ),
+          )
+          as String);
+
+  @override
+  String progressiveOverloadLastTime(String? calculation, String? volume) =>
+      (super.noSuchMethod(
+            Invocation.method(#progressiveOverloadLastTime, [
+              calculation,
+              volume,
+            ]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#progressiveOverloadLastTime, [
+                calculation,
+                volume,
+              ]),
+            ),
+          )
+          as String);
+
+  @override
+  String progressiveOverloadRequiredReps(int? count, String? calculation) =>
+      (super.noSuchMethod(
+            Invocation.method(#progressiveOverloadRequiredReps, [
+              count,
+              calculation,
+            ]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#progressiveOverloadRequiredReps, [
+                count,
+                calculation,
+              ]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModeSetCount(int? count) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModeSetCount, [count]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModeSetCount, [count]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModeRepCount(num? count) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModeRepCount, [count]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModeRepCount, [count]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModeRepRange(num? min, num? max) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModeRepRange, [min, max]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModeRepRange, [min, max]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModeSetsOfReps(String? sets, String? reps) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModeSetsOfReps, [sets, reps]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModeSetsOfReps, [sets, reps]),
+            ),
+          )
+          as String);
+
+  @override
+  String progressiveOverloadVolume(String? volume) =>
+      (super.noSuchMethod(
+            Invocation.method(#progressiveOverloadVolume, [volume]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#progressiveOverloadVolume, [volume]),
+            ),
+          )
+          as String);
+
+  @override
+  String progressiveOverloadTarget(String? target) =>
+      (super.noSuchMethod(
+            Invocation.method(#progressiveOverloadTarget, [target]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#progressiveOverloadTarget, [target]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModeRest(String? time) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModeRest, [time]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModeRest, [time]),
             ),
           )
           as String);
@@ -6062,6 +6723,17 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String enterMinWords(int? min) =>
+      (super.noSuchMethod(
+            Invocation.method(#enterMinWords, [min]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#enterMinWords, [min]),
+            ),
+          )
+          as String);
+
+  @override
   String enterMaxCharacters(int? max) =>
       (super.noSuchMethod(
             Invocation.method(#enterMaxCharacters, [max]),
@@ -6310,6 +6982,127 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
             returnValue: _i3.dummyValue<String>(
               this,
               Invocation.method(#calculationHelpWindowDays, [min, max]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModePlannedActualVolume(String? planned, String? actual) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModePlannedActualVolume, [planned, actual]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModePlannedActualVolume, [planned, actual]),
+            ),
+          )
+          as String);
+
+  @override
+  String gymModeFillLowerWeight(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#gymModeFillLowerWeight, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#gymModeFillLowerWeight, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String workoutReminderBody(String? exercise, int? count) =>
+      (super.noSuchMethod(
+            Invocation.method(#workoutReminderBody, [exercise, count]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#workoutReminderBody, [exercise, count]),
+            ),
+          )
+          as String);
+
+  @override
+  String workoutNotificationExtendRestBy(String? duration) =>
+      (super.noSuchMethod(
+            Invocation.method(#workoutNotificationExtendRestBy, [duration]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#workoutNotificationExtendRestBy, [duration]),
+            ),
+          )
+          as String);
+
+  @override
+  String weightProfileUnreachable(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#weightProfileUnreachable, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#weightProfileUnreachable, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String weightProfileSetup(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#weightProfileSetup, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#weightProfileSetup, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String loadoutBar(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#loadoutBar, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#loadoutBar, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String loadoutPerSide(String? plates) =>
+      (super.noSuchMethod(
+            Invocation.method(#loadoutPerSide, [plates]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#loadoutPerSide, [plates]),
+            ),
+          )
+          as String);
+
+  @override
+  String loadoutPin(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#loadoutPin, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#loadoutPin, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String loadoutAddOn(String? weights) =>
+      (super.noSuchMethod(
+            Invocation.method(#loadoutAddOn, [weights]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#loadoutAddOn, [weights]),
+            ),
+          )
+          as String);
+
+  @override
+  String loadoutFixed(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#loadoutFixed, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#loadoutFixed, [weight]),
             ),
           )
           as String);

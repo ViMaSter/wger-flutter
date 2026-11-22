@@ -53,6 +53,7 @@ import 'package:wger/features/routines/widgets/gym_mode/session_page.dart';
 import 'package:wger/features/routines/widgets/gym_mode/start_page.dart';
 import 'package:wger/features/routines/widgets/gym_mode/summary.dart';
 import 'package:wger/features/routines/widgets/gym_mode/timer.dart';
+import 'package:wger/features/routines/widgets/gym_mode/workout_list_page.dart';
 import 'package:wger/features/trophies/providers/trophy_repository.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/l10n/localizations_delegates.dart';
@@ -86,8 +87,10 @@ void main() {
   final mockUserProfileRepo = MockUserProfileRepository();
   late MockWorkoutNotificationService mockNotificationService;
 
-  setUp(() {
+  setUp(() async {
     SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
+    // These tests walk through the page per set, the list is the default
+    await PreferenceHelper.asyncPref.setBool(PREFS_LIST_LAYOUT, false);
     mockNotificationService = MockWorkoutNotificationService();
     when(mockNotificationService.supportsControls).thenReturn(true);
     when(mockNotificationService.requestPermissions(any)).thenAnswer((_) async {});
@@ -112,6 +115,11 @@ void main() {
     when(
       mockRoutinesRepo.fetchAndSetRoutineFullServer(any),
     ).thenAnswer((_) async => testRoutine);
+
+    // No earlier session, so no progressive overload options
+    when(
+      mockLogRepo.getLastSessionLogsByExercise(any, before: anyNamed('before')),
+    ).thenAnswer((_) async => []);
 
     // Past logs on the log page come from this stream (per exercise). Reuse the
     // test routine's logs so the assertions on previous entries keep working.
@@ -528,6 +536,48 @@ void main() {
 
     return riverpod.ProviderScope.containerOf(tester.element(find.byType(PageView)));
   }
+
+  testWidgets(
+    'the list layout shows the whole workout between start and session',
+    (WidgetTester tester) async {
+      await PreferenceHelper.asyncPref.setBool(PREFS_LIST_LAYOUT, true);
+      when(mockLogRepo.addLocalDrift(any, dayId: anyNamed('dayId'))).thenAnswer((_) async {});
+
+      await withClock(Clock.fixed(DateTime(2025, 3, 29, 14, 33)), () async {
+        await tester.pumpWidget(renderGymMode());
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(TextButton));
+        await tester.pumpAndSettle();
+        expect(find.byType(StartPage), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.chevron_right));
+        await tester.pumpAndSettle();
+        expect(find.byType(WorkoutListPage), findsOneWidget);
+        expect(find.byType(ExerciseOverview), findsNothing);
+        final container = riverpod.ProviderScope.containerOf(
+          tester.element(find.byType(PageView)),
+        );
+        final state = container.read(gymStateProvider);
+        final firstLog = state.logPagesBySlotEntry.first.first;
+        expect(state.currentPage, firstLog.pageIndex, reason: 'The first open set');
+
+        // Logging a set moves the state on to its rest, the list stays shown
+        await tester.tap(find.byKey(ValueKey('${firstLog.key}-done')));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(gymStateProvider).getSlotEntryPageByIndex()!.type,
+          SlotPageType.timer,
+        );
+        expect(find.byType(WorkoutListPage), findsOneWidget);
+        expect(find.byKey(const ValueKey('rest-bar')), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.chevron_right).last);
+        await tester.pumpAndSettle();
+        expect(find.byType(SessionPage), findsOneWidget);
+      });
+    },
+    semanticsEnabled: false,
+  );
 
   testWidgets(
     'the PageView follows page changes made in the gym state',

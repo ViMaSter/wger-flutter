@@ -27,6 +27,7 @@ import 'package:path/path.dart' as p;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
+import 'package:wger/features/routines/notifications/workout_reminder.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -215,6 +216,47 @@ void main() {
     );
 
     expect(scheduled()['subText'], 'Rest is over');
+  });
+
+  group('Reminder of missing entries', () {
+    final reminder = MissingEntriesReminder(
+      at: DateTime.now().add(const Duration(minutes: 30)),
+      title: 'Missed any entries?',
+      body: 'Bench press is missing entries',
+      channelName: 'Reminder',
+    );
+
+    test('Has a notification and channel of its own', () async {
+      await LocalWorkoutNotificationService().scheduleReminder(reminder);
+
+      final call = calls.singleWhere((c) => c.method == 'zonedSchedule').arguments as Map;
+      expect(call['id'], 2);
+      expect(call['title'], 'Missed any entries?');
+      expect(scheduled()['channelId'], 'workout_reminder');
+      expect(scheduled()['scheduleMode'], AndroidScheduleMode.exactAllowWhileIdle.name);
+    });
+
+    test('Inexact without the exact alarm permission', () async {
+      exactAllowed = false;
+
+      await LocalWorkoutNotificationService().scheduleReminder(reminder);
+
+      expect(scheduled()['scheduleMode'], AndroidScheduleMode.inexactAllowWhileIdle.name);
+    });
+
+    test('Survives clearing the rest notification, goes on its own', () async {
+      final service = LocalWorkoutNotificationService();
+      List<Object?> cancelled() => [
+        for (final c in calls.where((c) => c.method == 'cancel')) (c.arguments as Map)['id'],
+      ];
+
+      await service.cancelAll();
+      expect(cancelled(), [1]);
+
+      calls.clear();
+      await service.cancelReminder();
+      expect(cancelled(), [2]);
+    });
   });
 
   group('Log set', () {

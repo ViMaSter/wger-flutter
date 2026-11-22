@@ -7,10 +7,11 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:wger/features/routines/models/log.dart' as _i6;
+import 'package:wger/features/routines/models/log.dart' as _i7;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart' as _i4;
 import 'package:wger/features/routines/notifications/workout_notification_service.dart' as _i2;
-import 'package:wger/features/routines/providers/workout_logs_repository.dart' as _i5;
+import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i5;
+import 'package:wger/features/routines/providers/workout_logs_repository.dart' as _i6;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -122,6 +123,24 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i2.WorkoutNoti
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> scheduleReminder(_i5.MissingEntriesReminder? reminder) =>
+      (super.noSuchMethod(
+            Invocation.method(#scheduleReminder, [reminder]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> cancelReminder() =>
+      (super.noSuchMethod(
+            Invocation.method(#cancelReminder, []),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> actionHandled() =>
       (super.noSuchMethod(
             Invocation.method(#actionHandled, []),
@@ -134,13 +153,13 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i2.WorkoutNoti
 /// A class which mocks [WorkoutLogRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockWorkoutLogRepository extends _i1.Mock implements _i5.WorkoutLogRepository {
+class MockWorkoutLogRepository extends _i1.Mock implements _i6.WorkoutLogRepository {
   MockWorkoutLogRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Stream<List<_i6.Log>> watchLogsByExerciseDrift({
+  _i3.Stream<List<_i7.Log>> watchLogsByExerciseDrift({
     int? routineId,
     required int? exerciseId,
     DateTime? since,
@@ -151,25 +170,63 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i5.WorkoutLogReposit
               #exerciseId: exerciseId,
               #since: since,
             }),
-            returnValue: _i3.Stream<List<_i6.Log>>.empty(),
+            returnValue: _i3.Stream<List<_i7.Log>>.empty(),
           )
-          as _i3.Stream<List<_i6.Log>>);
+          as _i3.Stream<List<_i7.Log>>);
 
   @override
-  _i3.Future<_i6.Log?> getLatestLogByExercise(int? exerciseId) =>
+  _i3.Future<_i7.Log?> getLatestLogByExercise(int? exerciseId) =>
       (super.noSuchMethod(
             Invocation.method(#getLatestLogByExercise, [exerciseId]),
-            returnValue: _i3.Future<_i6.Log?>.value(),
+            returnValue: _i3.Future<_i7.Log?>.value(),
           )
-          as _i3.Future<_i6.Log?>);
+          as _i3.Future<_i7.Log?>);
 
   @override
-  _i3.Future<List<_i6.Log>> getLogsByIds(List<String>? ids) =>
+  _i3.Future<List<_i7.Log>> getLastSessionLogsByExercise(
+    int? exerciseId, {
+    required DateTime? before,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #getLastSessionLogsByExercise,
+              [exerciseId],
+              {#before: before},
+            ),
+            returnValue: _i3.Future<List<_i7.Log>>.value(<_i7.Log>[]),
+          )
+          as _i3.Future<List<_i7.Log>>);
+
+  @override
+  _i3.Future<List<num>> getDistinctWeightsByExercise(
+    int? exerciseId, {
+    int? weightUnitId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #getDistinctWeightsByExercise,
+              [exerciseId],
+              {#weightUnitId: weightUnitId},
+            ),
+            returnValue: _i3.Future<List<num>>.value(<num>[]),
+          )
+          as _i3.Future<List<num>>);
+
+  @override
+  _i3.Future<List<_i7.Log>> resubmitMissing(List<_i7.Log>? logs) =>
+      (super.noSuchMethod(
+            Invocation.method(#resubmitMissing, [logs]),
+            returnValue: _i3.Future<List<_i7.Log>>.value(<_i7.Log>[]),
+          )
+          as _i3.Future<List<_i7.Log>>);
+
+  @override
+  _i3.Future<List<_i7.Log>> getLogsByIds(List<String>? ids) =>
       (super.noSuchMethod(
             Invocation.method(#getLogsByIds, [ids]),
-            returnValue: _i3.Future<List<_i6.Log>>.value(<_i6.Log>[]),
+            returnValue: _i3.Future<List<_i7.Log>>.value(<_i7.Log>[]),
           )
-          as _i3.Future<List<_i6.Log>>);
+          as _i3.Future<List<_i7.Log>>);
 
   @override
   _i3.Future<void> deleteLocalDrift(String? id) =>
@@ -181,7 +238,7 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i5.WorkoutLogReposit
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> updateLocalDrift(_i6.Log? log) =>
+  _i3.Future<void> updateLocalDrift(_i7.Log? log) =>
       (super.noSuchMethod(
             Invocation.method(#updateLocalDrift, [log]),
             returnValue: _i3.Future<void>.value(),
@@ -190,7 +247,7 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i5.WorkoutLogReposit
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> addLocalDrift(_i6.Log? log, {int? dayId}) =>
+  _i3.Future<void> addLocalDrift(_i7.Log? log, {int? dayId}) =>
       (super.noSuchMethod(
             Invocation.method(#addLocalDrift, [log], {#dayId: dayId}),
             returnValue: _i3.Future<void>.value(),

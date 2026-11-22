@@ -167,7 +167,8 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
     final endTime = _endTime(gymState);
     final remaining = endTime.difference(clock.now());
     final remainingSeconds = remaining.inSeconds <= 0 ? 0 : remaining.inSeconds;
-    final displayTime = DateTime(2000, 1, 1, 0, 0, 0).add(Duration(seconds: remainingSeconds));
+    // Past the end the countdown keeps going below zero, as overtime
+    final isOver = remaining.inSeconds < 0;
     final notifier = ref.read(gymStateProvider.notifier);
     final isStarted = gymState.progressOf(widget.slotKey).timerStartedAt != null;
 
@@ -188,10 +189,12 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                DateFormat('m:ss').format(displayTime),
-                style: Theme.of(
-                  context,
-                ).textTheme.displayLarge!.copyWith(color: Theme.of(context).colorScheme.primary),
+                isOver ? '-${_formatRest(-remaining.inSeconds)}' : _formatRest(remainingSeconds),
+                style: Theme.of(context).textTheme.displayLarge!.copyWith(
+                  color: isOver
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.primary,
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -243,6 +246,9 @@ class _TimerCountdownWidgetState extends ConsumerState<TimerCountdownWidget> {
     );
   }
 }
+
+/// [seconds] as m:ss, the minutes growing past an hour, e.g. 65:00
+String _formatRest(int seconds) => '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 
 /// Shows the set that will be performed once the rest timer on the slot page
 /// identified by [slotKey] ends. This can be the next set of the same
