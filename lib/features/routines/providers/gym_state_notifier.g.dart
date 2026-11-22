@@ -40,7 +40,7 @@ final class GymStateNotifierProvider extends $NotifierProvider<GymStateNotifier,
   }
 }
 
-String _$gymStateNotifierHash() => r'ac810c35f611b2ff617de8259d2ad3bed1ae5736';
+String _$gymStateNotifierHash() => r'88dc4ab12ca93b1fbaea9c36c99d3c9858394800';
 
 abstract class _$GymStateNotifier extends $Notifier<GymModeState> {
   GymModeState build();

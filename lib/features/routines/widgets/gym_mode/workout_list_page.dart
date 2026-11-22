@@ -21,10 +21,8 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:wger/core/consts.dart';
 import 'package:wger/core/formatting/formatting.dart';
 import 'package:wger/core/number_input.dart';
@@ -137,6 +135,9 @@ class _WorkoutListPageState extends ConsumerState<WorkoutListPage> {
     final i18n = AppLocalizations.of(context);
     final blocks = ref.watch(gymStateProvider.select((s) => s.logPagesBySlotEntry));
     final progressiveOverload = ref.watch(gymStateProvider.select((s) => s.progressiveOverload));
+    final routineComment = ref.watch(
+      gymStateProvider.select((s) => s.isInitialized ? s.routine.description.trim() : ''),
+    );
 
     // The overload options add a row of chips to their block once loaded,
     // which would push the row down again after it was scrolled to
@@ -161,6 +162,12 @@ class _WorkoutListPageState extends ConsumerState<WorkoutListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (routineComment.isNotEmpty)
+                  Padding(
+                    key: const ValueKey('routine-comment'),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    child: LinkifiedComment(routineComment),
+                  ),
                 for (final logPages in blocks)
                   ExerciseSetsBlock(
                     logPages,
@@ -484,9 +491,33 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
       if (weighted) ?unit,
     ].join(' ');
 
+    // Every row as it stands, checked or not: logged, else entered, else
+    // pre-filled
+    final allSets = [
+      for (final (index, page) in widget.logPages.indexed)
+        if (loggedAt(page) case final log?)
+          volumeSet(log.weight, log.repetitions)
+        else if (gymState.rowDrafts[page.key] case final draft?)
+          volumeSet(draft.weight, draft.repetitions)
+        else
+          volumeSet(defaultsAt(index).weight, defaultsAt(index).repetitions),
+      for (final log in extraLogged) volumeSet(log.weight, log.repetitions),
+      for (var i = 0; i < pendingExtras; i++)
+        if (gymState.rowDrafts['pending:$slotEntryId:${extraLogged.length + i}'] case final draft?)
+          volumeSet(draft.weight, draft.repetitions)
+        else
+          volumeSet(
+            defaultsAt(plannedCount + extraLogged.length + i).weight,
+            defaultsAt(plannedCount + extraLogged.length + i).repetitions,
+          ),
+    ];
+
+    // The extra sets logged so far took the option's extra sets first, the
+    // ones beyond came from "add set"
+    final optionExtraTotal = selected == null ? 0 : selected.sets.length - plannedCount;
+    final extrasFromOption = optionExtraTotal >= extraLogged.length;
+
     final comments = _config.comment.trim();
-    final languageCode = Localizations.localeOf(context).languageCode;
-    final description = _config.exercise.getDescription(languageCode).trim();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -512,15 +543,11 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
                 ),
             ],
           ),
-          if (comments.isNotEmpty) LinkifiedComment(comments),
-          if (description.isNotEmpty)
+          if (comments.isNotEmpty)
             Padding(
-              key: ValueKey('exercise-description-$slotEntryId'),
+              key: ValueKey('exercise-comment-$slotEntryId'),
               padding: const EdgeInsets.only(top: 4),
-              child: HtmlWidget(
-                description,
-                onTapUrl: (url) => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-              ),
+              child: LinkifiedComment(comments),
             ),
           if (_repRange(context) case final range?)
             Padding(
@@ -598,11 +625,6 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
           ],
           const SizedBox(height: 8),
           _HeaderRow(unit: unit),
-          _TotalsRow(
-            slotEntryId: slotEntryId,
-            previous: overloadVolume(lastSets),
-            current: actualVolume,
-          ),
           for (final (index, page) in widget.logPages.indexed)
             KeyedSubtree(
               key: page.key == widget.resumeRowKey ? widget.resumeKey : null,
@@ -620,6 +642,14 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
                 onLog: (reps, weight) =>
                     notifier.logSetAt(page.key, repetitions: reps, weight: weight),
                 onUnlog: () => notifier.unlogSetAt(page.key),
+                onRemove: () => _remove(
+                  logged: loggedAt(page) != null,
+                  () => notifier.removeListRow(
+                    slotEntryId,
+                    pageKey: page.key,
+                    optionIndex: selected == null ? null : index,
+                  ),
+                ),
               ),
             ),
           for (final (index, log) in extraLogged.indexed)
@@ -633,6 +663,14 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
               onPlateMath: (weight) => _plateMath(weight, unit),
               onLog: (_, _) async {},
               onUnlog: () => notifier.removeExtraSet(slotEntryId, index),
+              onRemove: () => _remove(
+                logged: true,
+                () => notifier.removeListRow(
+                  slotEntryId,
+                  extraIndex: index,
+                  optionIndex: extrasFromOption ? plannedCount + index : null,
+                ),
+              ),
             ),
           for (var i = 0; i < pendingExtras; i++)
             SetRow(
@@ -661,7 +699,23 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
                 }
               },
               onUnlog: () async {},
+              onRemove: () => _remove(logged: false, () async {
+                if (i < optionExtras) {
+                  await notifier.removeListRow(
+                    slotEntryId,
+                    optionIndex: plannedCount + extraLogged.length + i,
+                  );
+                } else if (mounted) {
+                  setState(() => _addedRows--);
+                }
+              }),
             ),
+          _TotalsRow(
+            slotEntryId: slotEntryId,
+            previous: overloadVolume(lastSets),
+            checked: actualVolume,
+            all: overloadVolume(allSets),
+          ),
           TextButton.icon(
             key: ValueKey('add-set-$slotEntryId'),
             icon: const Icon(Icons.add),
@@ -706,6 +760,34 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
     };
   }
 
+  /// Asks before removing a row on long press, [logged] for a row whose set
+  /// is deleted with it
+  Future<void> _remove(Future<void> Function() remove, {required bool logged}) async {
+    final i18n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(i18n.gymModeRemoveSetTitle),
+        content: Text(logged ? i18n.gymModeRemoveSetLogged : i18n.gymModeRemoveSetPending),
+        actions: [
+          TextButton(
+            key: const ValueKey('remove-set-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+          ),
+          FilledButton(
+            key: const ValueKey('remove-set-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(i18n.gymModeRemoveSet),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await remove();
+    }
+  }
+
   Future<void> _editWeights(String? unit) =>
       showWeightProfileSheet(context, exerciseId: _config.exerciseId, unit: unit);
 
@@ -746,14 +828,21 @@ class _HeaderRow extends StatelessWidget {
   }
 }
 
-/// The sums under the header: the volume of last time, the volume logged
-/// today and how far today is ahead (green) or behind
+/// The sums under the sets: the volume of last time, of the checked sets and
+/// of all sets as they stand, the last two with how far they are ahead of last
+/// time (green) or behind (red)
 class _TotalsRow extends StatelessWidget {
   final int slotEntryId;
   final num previous;
-  final num current;
+  final num checked;
+  final num all;
 
-  const _TotalsRow({required this.slotEntryId, required this.previous, required this.current});
+  const _TotalsRow({
+    required this.slotEntryId,
+    required this.previous,
+    required this.checked,
+    required this.all,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -761,12 +850,41 @@ class _TotalsRow extends StatelessWidget {
     final theme = Theme.of(context);
     final format = localizedNumberFormat(context);
     final style = theme.textTheme.labelLarge;
-    final diff = current - previous;
-    final diffText = switch (diff) {
-      > 0 => '+${format.format(diff)}',
-      < 0 => '\u2212${format.format(-diff)}',
-      _ => format.format(0),
-    };
+
+    Widget total(String name, num value) {
+      final diff = value - previous;
+      final diffText = switch (diff) {
+        > 0 => '(+${format.format(diff)})',
+        < 0 => '(\u2212${format.format(-diff)})',
+        _ => '(${format.format(0)})',
+      };
+      return Column(
+        children: [
+          Text(
+            format.format(value),
+            key: ValueKey('total-$name-$slotEntryId'),
+            style: style,
+            textAlign: TextAlign.center,
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: diff > 0 ? progressionHighlight(context) : null,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              diffText,
+              key: ValueKey('total-$name-diff-$slotEntryId'),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: diff < 0 ? theme.colorScheme.error : null,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -781,32 +899,8 @@ class _TotalsRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: _plateColumnWidth),
-          Expanded(
-            flex: 2,
-            child: Text(
-              format.format(current),
-              key: ValueKey('total-current-$slotEntryId'),
-              style: style,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              key: ValueKey('total-diff-$slotEntryId'),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              decoration: BoxDecoration(
-                color: diff > 0 ? progressionHighlight(context) : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                diffText,
-                style: style?.copyWith(color: diff < 0 ? theme.colorScheme.error : null),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
+          Expanded(flex: 2, child: total('checked', checked)),
+          Expanded(flex: 2, child: total('all', all)),
           const SizedBox(width: 48),
         ],
       ),
@@ -844,6 +938,9 @@ class SetRow extends StatefulWidget {
   /// Opens the plate math for the entered weight, no column without it
   final void Function(num? weight)? onPlateMath;
 
+  /// Asks to remove the row, on long press
+  final VoidCallback? onRemove;
+
   const SetRow({
     required this.rowKey,
     required this.previous,
@@ -855,6 +952,7 @@ class SetRow extends StatefulWidget {
     this.onDraft,
     this.profile,
     this.onPlateMath,
+    this.onRemove,
     super.key,
   });
 
@@ -990,51 +1088,56 @@ class _SetRowState extends State<SetRow> {
       );
     }
 
-    return Container(
-      color: done ? theme.colorScheme.surfaceContainerHighest : null,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              previousText(),
-              key: ValueKey('${widget.rowKey}-previous'),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          if (widget.onPlateMath case final onPlateMath?)
-            SizedBox(
-              width: _plateColumnWidth,
-              child: IconButton(
-                key: ValueKey('${widget.rowKey}-plates'),
-                padding: EdgeInsets.zero,
-                tooltip: AppLocalizations.of(context).weightProfile,
-                onPressed: () => onPlateMath(weight),
-                icon: Icon(
-                  reachable ? Icons.fitness_center : Icons.warning_amber_rounded,
-                  size: 20,
-                  color: reachable ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
+    return GestureDetector(
+      key: ValueKey('${widget.rowKey}-row'),
+      behavior: HitTestBehavior.opaque,
+      onLongPress: widget.onRemove,
+      child: Container(
+        color: done ? theme.colorScheme.surfaceContainerHighest : null,
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Text(
+                previousText(),
+                key: ValueKey('${widget.rowKey}-previous'),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            )
-          else
-            const SizedBox(width: _plateColumnWidth),
-          Expanded(flex: 2, child: cell(_weight, 'weight', green: heavier)),
-          Expanded(flex: 2, child: cell(_reps, 'reps', green: moreReps)),
-          SizedBox(
-            width: 48,
-            child: IconButton(
-              key: ValueKey('${widget.rowKey}-done'),
-              onPressed: _busy ? null : _toggle,
-              icon: Icon(
-                done ? Icons.check_box : Icons.check_box_outline_blank,
-                color: done ? theme.colorScheme.primary : null,
+            ),
+            if (widget.onPlateMath case final onPlateMath?)
+              SizedBox(
+                width: _plateColumnWidth,
+                child: IconButton(
+                  key: ValueKey('${widget.rowKey}-plates'),
+                  padding: EdgeInsets.zero,
+                  tooltip: AppLocalizations.of(context).weightProfile,
+                  onPressed: () => onPlateMath(weight),
+                  icon: Icon(
+                    reachable ? Icons.fitness_center : Icons.warning_amber_rounded,
+                    size: 20,
+                    color: reachable ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
+                  ),
+                ),
+              )
+            else
+              const SizedBox(width: _plateColumnWidth),
+            Expanded(flex: 2, child: cell(_weight, 'weight', green: heavier)),
+            Expanded(flex: 2, child: cell(_reps, 'reps', green: moreReps)),
+            SizedBox(
+              width: 48,
+              child: IconButton(
+                key: ValueKey('${widget.rowKey}-done'),
+                onPressed: _busy ? null : _toggle,
+                icon: Icon(
+                  done ? Icons.check_box : Icons.check_box_outline_blank,
+                  color: done ? theme.colorScheme.primary : null,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

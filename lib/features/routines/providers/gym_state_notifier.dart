@@ -210,6 +210,7 @@ class GymStateNotifier extends _$GymStateNotifier {
         for (final MapEntry(:key, :value) in state.rowDrafts.entries)
           key: StoredRowDraft(weight: value.weight, repetitions: value.repetitions),
       },
+      removedRows: state.removedRows.toList(),
     );
 
     await PreferenceHelper.asyncPref.setString(
@@ -319,6 +320,7 @@ class GymStateNotifier extends _$GymStateNotifier {
         for (final MapEntry(:key, :value) in saved.drafts.entries)
           key: (weight: value.weight, repetitions: value.repetitions),
       },
+      removedRows: saved.removedRows.toSet(),
     );
 
     _logger.fine('Restored workout progress on page ${state.currentPage}');
@@ -829,11 +831,81 @@ class GymStateNotifier extends _$GymStateNotifier {
 
   /// Undoes logging the set of the log page [slotPageKey], deleting its row
   Future<void> unlogSetAt(String slotPageKey) async {
-    final logId = state.progressOf(slotPageKey).loggedEntry?.id;
-    if (logId != null) {
-      await ref.read(workoutLogProvider).deleteEntry(logId);
-    }
+    await _deleteLog(state.progressOf(slotPageKey).loggedEntry);
     _updateProgress(slotPageKey, (p) => p.copyWith(done: false, loggedEntry: null));
+  }
+
+  /// Sessions whose logs were deleted in this workout, checked by
+  /// [discardEmptySessions] when gym mode is left
+  final _sessionsToCheck = <String>{};
+
+  /// Deletes the saved [log], remembering its session in case it is empty now
+  Future<void> _deleteLog(Log? log) async {
+    final id = log?.id;
+    if (id == null) {
+      return;
+    }
+    await ref.read(workoutLogProvider).deleteEntry(id);
+    if (log!.sessionId case final sessionId?) {
+      _sessionsToCheck.add(sessionId);
+    }
+  }
+
+  /// Deletes the sessions that lost all their logs because sets were unchecked
+  /// or removed in this workout, e.g. after checking a set and unchecking it
+  /// again. Sessions with logs left, also of other exercises, stay.
+  Future<void> discardEmptySessions() async {
+    final sessions = {..._sessionsToCheck};
+    _sessionsToCheck.clear();
+    for (final sessionId in sessions) {
+      if (!ref.mounted) {
+        return;
+      }
+      try {
+        await ref.read(workoutLogProvider).deleteSessionIfEmpty(sessionId);
+      } catch (e, s) {
+        _logger.warning('Could not check the session $sessionId for logs', e, s);
+      }
+    }
+  }
+
+  /// Removes a row from the set table of [slotEntryId] in the list layout:
+  /// the planned set [pageKey], or the extra set at [extraIndex]. A logged set
+  /// is deleted. [optionIndex] is the set of the chosen overload option the
+  /// row showed, dropped so that no other row takes its place.
+  Future<void> removeListRow(
+    int slotEntryId, {
+    String? pageKey,
+    int? extraIndex,
+    int? optionIndex,
+  }) async {
+    if (pageKey != null) {
+      await _deleteLog(state.progressOf(pageKey).loggedEntry);
+      state = state.copyWith(
+        removedRows: {...state.removedRows, pageKey},
+        progress: {...state.progress}..remove(pageKey),
+      );
+      _clearRowDraft(pageKey);
+    }
+
+    if (extraIndex != null) {
+      final logs = [...?state.extraLogs[slotEntryId]];
+      if (extraIndex >= 0 && extraIndex < logs.length) {
+        await _deleteLog(logs.removeAt(extraIndex));
+        state = state.copyWith(extraLogs: {...state.extraLogs, slotEntryId: logs});
+      }
+    }
+
+    final option = state.selectedOverload[slotEntryId];
+    if (option != null && optionIndex != null && optionIndex < option.sets.length) {
+      state = state.copyWith(
+        selectedOverload: {
+          ...state.selectedOverload,
+          slotEntryId: option.copyWith(sets: [...option.sets]..removeAt(optionIndex)),
+        },
+      );
+    }
+    _saveProgress();
   }
 
   /// Keeps the values entered for the set in the row [rowKey] of the list
@@ -921,10 +993,7 @@ class GymStateNotifier extends _$GymStateNotifier {
     if (index < 0 || index >= logs.length) {
       return;
     }
-    final removed = logs.removeAt(index);
-    if (removed.id != null) {
-      await ref.read(workoutLogProvider).deleteEntry(removed.id!);
-    }
+    await _deleteLog(logs.removeAt(index));
     state = state.copyWith(extraLogs: {...state.extraLogs, slotEntryId: logs});
     _saveProgress();
   }
@@ -1069,6 +1138,7 @@ class GymStateNotifier extends _$GymStateNotifier {
       overloadDecided: const {},
       extraLogs: const {},
       rowDrafts: const {},
+      removedRows: const {},
     );
     await _clearProgress();
   }
@@ -1085,6 +1155,7 @@ class GymStateNotifier extends _$GymStateNotifier {
       overloadDecided: const {},
       extraLogs: const {},
       rowDrafts: const {},
+      removedRows: const {},
 
       validUntil: clock.now().add(DEFAULT_DURATION),
       workoutStart: clock.now(),

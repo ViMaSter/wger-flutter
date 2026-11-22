@@ -401,6 +401,37 @@ void main() {
     });
   });
 
+  group('deleteSessionIfEmpty', () {
+    Future<String> createSession() async {
+      final row = await db
+          .into(db.workoutSessionTable)
+          .insertReturning(
+            WorkoutSession(routineId: 100, datetimeStart: DateTime.utc(2026, 4, 15)).toCompanion(),
+          );
+      return row.id!;
+    }
+
+    test('deletes a session without logs', () async {
+      final sessionId = await createSession();
+      final log = makeLog(sessionId: sessionId);
+      await repo.addLocalDrift(log);
+      await repo.deleteLocalDrift(log.id!);
+
+      expect(await repo.deleteSessionIfEmpty(sessionId), isTrue);
+      expect(await readSessions(), isEmpty);
+    });
+
+    test('keeps a session with logs left, also of another exercise', () async {
+      final sessionId = await createSession();
+      final other = await createSession();
+      await repo.addLocalDrift(makeLog(sessionId: sessionId, exerciseId: 2));
+
+      expect(await repo.deleteSessionIfEmpty(sessionId), isFalse);
+      expect((await readSessions()).map((s) => s.id), unorderedEquals([sessionId, other]));
+      expect(await readLogs(), hasLength(1));
+    });
+  });
+
   group('deleteLocalDrift', () {
     test('removes the row with matching id', () async {
       final log = makeLog(sessionId: 'session-1');

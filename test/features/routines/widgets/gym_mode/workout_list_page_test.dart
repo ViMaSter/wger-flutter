@@ -362,27 +362,59 @@ void main() {
       }
     }
 
-    testWidgets('shows the description above the planned sets, none when empty', (tester) async {
-      setDescription(0, '<p>Keep <a href="https://example.com">the back</a> flat</p>');
-      setDescription(1, '  ');
+    testWidgets('shows the routine comment of the exercise, not its description', (
+      tester,
+    ) async {
+      setDescription(0, '<p>Keep the back flat</p>');
+      for (final page in container.read(gymStateProvider).logPagesBySlotEntry.first) {
+        page.setConfigData!.comment = 'Slow negatives, see https://example.com/curl';
+      }
       await pumpList(tester);
 
-      final description = find.byKey(ValueKey('exercise-description-${slotEntryOf(0)}'));
-      expect(description, findsOneWidget);
+      final comment = find.byKey(ValueKey('exercise-comment-${slotEntryOf(0)}'));
+      expect(comment, findsOneWidget);
       expect(
         find.descendant(
-          of: description,
-          matching: find.textContaining('the back', findRichText: true),
+          of: comment,
+          matching: find.textContaining('https://example.com/curl', findRichText: true),
         ),
         findsOneWidget,
       );
+      expect(find.textContaining('Keep the back flat', findRichText: true), findsNothing);
       expect(
-        tester.getBottomLeft(description).dy,
+        tester.getBottomLeft(comment).dy,
         lessThanOrEqualTo(
           tester.getTopLeft(find.byKey(ValueKey('rep-range-${slotEntryOf(0)}'))).dy,
         ),
       );
-      expect(find.byKey(ValueKey('exercise-description-${slotEntryOf(1)}')), findsNothing);
+      expect(find.byKey(ValueKey('exercise-comment-${slotEntryOf(1)}')), findsNothing);
+    });
+
+    testWidgets('shows the comment of the routine above the first exercise', (tester) async {
+      container.read(gymStateProvider).routine.description = 'Deload week https://example.com';
+      await pumpList(tester);
+
+      final comment = find.byKey(const ValueKey('routine-comment'));
+      expect(
+        find.descendant(
+          of: comment,
+          matching: find.textContaining('https://example.com', findRichText: true),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getBottomLeft(comment).dy,
+        lessThanOrEqualTo(
+          tester.getTopLeft(find.byKey(ValueKey('exercise-block-${slotEntryOf(0)}'))).dy,
+        ),
+      );
+    });
+
+    testWidgets('no routine comment without one', (tester) async {
+      container.read(gymStateProvider).routine.description = '  ';
+      await pumpList(tester);
+
+      expect(find.byKey(const ValueKey('routine-comment')), findsNothing);
     });
 
     testWidgets('planned volume of the targets, actual volume of the logged sets', (tester) async {
@@ -416,54 +448,46 @@ void main() {
       expect(volume(), 'Planned 1,200 kg · Actual 700 kg');
     });
 
-    testWidgets('totals of last time and today with the difference', (tester) async {
+    testWidgets('totals of last time, the checked sets and all sets, relative to last time', (
+      tester,
+    ) async {
       await pumpList(tester);
       final slotEntryId = slotEntryOf(0);
-      String text(String cell) =>
-          tester.widget<Text>(find.byKey(ValueKey('total-$cell-$slotEntryId'))).data ??
-          tester
-              .widget<Text>(
-                find.descendant(
-                  of: find.byKey(ValueKey('total-$cell-$slotEntryId')),
-                  matching: find.byType(Text),
-                ),
-              )
-              .data!;
-      Text diffText() => tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(ValueKey('total-diff-$slotEntryId')),
-          matching: find.byType(Text),
-        ),
-      );
-      Color? diffBackground() =>
-          (tester.widget<Container>(find.byKey(ValueKey('total-diff-$slotEntryId'))).decoration!
-                  as BoxDecoration)
-              .color;
-      final context = tester.element(find.byKey(ValueKey('total-diff-$slotEntryId')));
+      final [first, _, third] = firstExerciseRows;
+      Text total(String cell) =>
+          tester.widget<Text>(find.byKey(ValueKey('total-$cell-$slotEntryId')));
+      final context = tester.element(find.byKey(ValueKey('total-all-$slotEntryId')));
       final scheme = Theme.of(context).colorScheme;
 
-      // Last time 2 × 3 × 100 kg
-      expect(text('previous'), 'Total 600');
-      expect(text('current'), '0');
-      expect(diffText().data, '−600');
-      expect(diffText().style!.color, scheme.error);
-      expect(diffBackground(), isNull);
+      // Last time 2 × 3 × 100 kg; pre-filled 100 × 4, 100 × 3, 100 × 3
+      expect(total('previous').data, 'Total 600');
+      expect(total('checked').data, '0');
+      expect(total('checked-diff').data, '(−600)');
+      expect(total('checked-diff').style!.color, scheme.error);
+      expect(total('all').data, '1,000');
+      expect(total('all-diff').data, '(+400)');
+      expect(total('all-diff').style!.color, isNot(scheme.error));
 
-      for (final row in firstExerciseRows) {
-        await tester.tap(find.byKey(ValueKey('$row-done')));
-        await tester.pumpAndSettle();
-      }
+      // Typed in, not checked: only the total of all sets follows
+      await tester.enterText(field(third, 'reps'), '1');
+      await tester.pump();
+      expect(total('checked').data, '0');
+      expect(total('all').data, '800');
 
-      // 100 × 4 + 100 × 3 + 100 × 3
-      expect(text('current'), '1,000');
-      expect(diffText().data, '+400');
-      expect(diffText().style!.color, isNot(scheme.error));
-      expect(diffBackground(), progressionHighlight(context));
+      await tester.tap(find.byKey(ValueKey('$first-done')));
+      await tester.pumpAndSettle();
+      expect(total('checked').data, '400');
+      expect(total('checked-diff').data, '(−200)');
 
-      // The totals line up under the header columns
+      // Below the last set, above "add set"
+      final totals = find.byKey(ValueKey('total-all-$slotEntryId'));
       expect(
-        tester.getCenter(find.byKey(ValueKey('total-current-$slotEntryId'))).dx,
-        closeTo(tester.getCenter(field(firstExerciseRows.first, 'weight')).dx, 1),
+        tester.getTopLeft(totals).dy,
+        greaterThan(tester.getBottomLeft(field(third, 'reps')).dy),
+      );
+      expect(
+        tester.getBottomLeft(totals).dy,
+        lessThan(tester.getTopLeft(find.byKey(ValueKey('add-set-$slotEntryId'))).dy),
       );
     });
   });
@@ -689,6 +713,67 @@ void main() {
       expect(await storedProgress(tester), isNull);
     });
   });
+  group('removing a row by holding it', () {
+    setUp(() {
+      when(logRepo.deleteLocalDrift(any)).thenAnswer((_) async {});
+    });
+
+    Future<void> holdAndAnswer(WidgetTester tester, String row, {required bool confirm}) async {
+      await tester.longPress(find.byKey(ValueKey('$row-previous')));
+      await tester.pumpAndSettle();
+      expect(find.text('Remove this set?'), findsOneWidget);
+      await tester.tap(find.byKey(ValueKey(confirm ? 'remove-set-confirm' : 'remove-set-cancel')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('an unchecked set leaves the table and the plan, nothing is deleted', (
+      tester,
+    ) async {
+      await pumpList(tester);
+      final [first, second, third] = firstExerciseRows;
+
+      await holdAndAnswer(tester, second, confirm: false);
+      expect(field(second, 'reps'), findsOneWidget, reason: 'Cancelled');
+
+      await holdAndAnswer(tester, second, confirm: true);
+      expect(field(second, 'reps'), findsNothing);
+      expect(field(first, 'reps'), findsOneWidget);
+      expect(field(third, 'reps'), findsOneWidget);
+      // No other row took the place of the removed one
+      expect(find.byKey(ValueKey('set-row-pending:${_slotEntry(container)}:0')), findsNothing);
+      final state = container.read(gymStateProvider);
+      expect(state.requiredLogPages.map((p) => p.key), isNot(contains(second)));
+      expect(state.removedRows, {second});
+      verifyNever(logRepo.deleteLocalDrift(any));
+    });
+
+    testWidgets('a checked set is deleted with its row', (tester) async {
+      await pumpList(tester);
+      final first = firstExerciseRows.first;
+      await tester.tap(find.byKey(ValueKey('$first-done')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('rest-bar-skip')));
+      await tester.pumpAndSettle();
+
+      await holdAndAnswer(tester, first, confirm: true);
+
+      verify(logRepo.deleteLocalDrift('log-1')).called(1);
+      expect(field(first, 'reps'), findsNothing);
+      expect(container.read(gymStateProvider).progressOf(first).done, isFalse);
+    });
+
+    testWidgets('a row added with "add set" goes away without a trace', (tester) async {
+      await pumpList(tester);
+      final slotEntryId = _slotEntry(container);
+      await tester.tap(find.byKey(ValueKey('add-set-$slotEntryId')));
+      await tester.pumpAndSettle();
+
+      await holdAndAnswer(tester, 'pending:$slotEntryId:0', confirm: true);
+
+      expect(field('pending:$slotEntryId:0', 'reps'), findsNothing);
+      verifyNever(logRepo.deleteLocalDrift(any));
+    });
+  });
 }
 
 /// Assigns fixed equipment weights [weights] to the exercise [exerciseId]
@@ -700,3 +785,6 @@ Future<void> _setWeights(ProviderContainer container, int exerciseId, List<num> 
   );
   await notifier.assign(exerciseId, 'p$exerciseId');
 }
+
+int _slotEntry(ProviderContainer container) =>
+    container.read(gymStateProvider).logPagesBySlotEntry.first.first.setConfigData!.slotEntryId;

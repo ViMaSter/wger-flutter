@@ -620,6 +620,14 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i27.WorkoutLogReposi
           as _i10.Future<void>);
 
   @override
+  _i10.Future<bool> deleteSessionIfEmpty(String? sessionId) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteSessionIfEmpty, [sessionId]),
+            returnValue: _i10.Future<bool>.value(false),
+          )
+          as _i10.Future<bool>);
+
+  @override
   _i10.Future<void> updateLocalDrift(_i28.Log? log) =>
       (super.noSuchMethod(
             Invocation.method(#updateLocalDrift, [log]),

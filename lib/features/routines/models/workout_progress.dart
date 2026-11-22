@@ -54,6 +54,9 @@ sealed class WorkoutProgress with _$WorkoutProgress {
 
     /// Values entered for sets that aren't logged yet, by row key
     @Default({}) Map<String, StoredRowDraft> drafts,
+
+    /// Planned sets removed from the list layout, by page key
+    @Default([]) List<String> removedRows,
   }) = _WorkoutProgress;
 
   factory WorkoutProgress.fromJson(Map<String, dynamic> json) => _$WorkoutProgressFromJson(json);

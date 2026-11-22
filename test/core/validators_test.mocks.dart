@@ -5941,6 +5941,50 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String get gymModeRemoveSetTitle =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeRemoveSetTitle),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeRemoveSetTitle),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeRemoveSetLogged =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeRemoveSetLogged),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeRemoveSetLogged),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeRemoveSetPending =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeRemoveSetPending),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeRemoveSetPending),
+            ),
+          )
+          as String);
+
+  @override
+  String get gymModeRemoveSet =>
+      (super.noSuchMethod(
+            Invocation.getter(#gymModeRemoveSet),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#gymModeRemoveSet),
+            ),
+          )
+          as String);
+
+  @override
   String get gymModeFillLowerWeightHelp =>
       (super.noSuchMethod(
             Invocation.getter(#gymModeFillLowerWeightHelp),

@@ -108,7 +108,7 @@ final class OverloadSuggestionsProvider
   }
 }
 
-String _$overloadSuggestionsHash() => r'3387539ee211684819ff35792b4c5d27a4e9f257';
+String _$overloadSuggestionsHash() => r'6220ad2cf287e9c954c5729aa2412079295f9c77';
 
 /// The progressive overload options for [exerciseId], based on its last
 /// session before [before] (the start of the running workout, so its own sets

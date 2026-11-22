@@ -78,4 +78,6 @@ class WorkoutLogMutations {
   Future<void> updateEntry(Log log) => _repo.updateLocalDrift(log);
 
   Future<void> deleteEntry(String id) => _repo.deleteLocalDrift(id);
+
+  Future<bool> deleteSessionIfEmpty(String sessionId) => _repo.deleteSessionIfEmpty(sessionId);
 }

@@ -46,6 +46,8 @@ _WorkoutProgress _$WorkoutProgressFromJson(Map<String, dynamic> json) => _Workou
         (k, e) => MapEntry(k, StoredRowDraft.fromJson(e as Map<String, dynamic>)),
       ) ??
       const {},
+  removedRows:
+      (json['removedRows'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
 );
 
 Map<String, dynamic> _$WorkoutProgressToJson(_WorkoutProgress instance) => <String, dynamic>{
@@ -61,6 +63,7 @@ Map<String, dynamic> _$WorkoutProgressToJson(_WorkoutProgress instance) => <Stri
   'overloadDecided': instance.overloadDecided,
   'extraLogs': instance.extraLogs,
   'drafts': instance.drafts,
+  'removedRows': instance.removedRows,
 };
 
 _StoredPageProgress _$StoredPageProgressFromJson(Map<String, dynamic> json) => _StoredPageProgress(

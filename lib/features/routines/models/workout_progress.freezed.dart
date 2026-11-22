@@ -24,7 +24,8 @@ mixin _$WorkoutProgress {
  Map<String, StoredOverloadChoice> get overload;/// Slot entries whose option was chosen, also "as before"
  List<int> get overloadDecided;/// Sets logged beyond the planned ones, by slot entry ID
  Map<String, List<StoredLog>> get extraLogs;/// Values entered for sets that aren't logged yet, by row key
- Map<String, StoredRowDraft> get drafts;
+ Map<String, StoredRowDraft> get drafts;/// Planned sets removed from the list layout, by page key
+ List<String> get removedRows;
 /// Create a copy of WorkoutProgress
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,20 +39,20 @@ $WorkoutProgressCopyWith<WorkoutProgress> get copyWith => _$WorkoutProgressCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as WorkoutProgress;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkoutProgress&&(identical(other.dayId, _this.dayId) || other.dayId == _this.dayId)&&(identical(other.iteration, _this.iteration) || other.iteration == _this.iteration)&&(identical(other.currentPageKey, _this.currentPageKey) || other.currentPageKey == _this.currentPageKey)&&(identical(other.workoutStart, _this.workoutStart) || other.workoutStart == _this.workoutStart)&&(identical(other.validUntil, _this.validUntil) || other.validUntil == _this.validUntil)&&const DeepCollectionEquality().equals(other.pages, _this.pages)&&(identical(other.routineId, _this.routineId) || other.routineId == _this.routineId)&&(identical(other.totalSets, _this.totalSets) || other.totalSets == _this.totalSets)&&const DeepCollectionEquality().equals(other.overload, _this.overload)&&const DeepCollectionEquality().equals(other.overloadDecided, _this.overloadDecided)&&const DeepCollectionEquality().equals(other.extraLogs, _this.extraLogs)&&const DeepCollectionEquality().equals(other.drafts, _this.drafts));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WorkoutProgress&&(identical(other.dayId, _this.dayId) || other.dayId == _this.dayId)&&(identical(other.iteration, _this.iteration) || other.iteration == _this.iteration)&&(identical(other.currentPageKey, _this.currentPageKey) || other.currentPageKey == _this.currentPageKey)&&(identical(other.workoutStart, _this.workoutStart) || other.workoutStart == _this.workoutStart)&&(identical(other.validUntil, _this.validUntil) || other.validUntil == _this.validUntil)&&const DeepCollectionEquality().equals(other.pages, _this.pages)&&(identical(other.routineId, _this.routineId) || other.routineId == _this.routineId)&&(identical(other.totalSets, _this.totalSets) || other.totalSets == _this.totalSets)&&const DeepCollectionEquality().equals(other.overload, _this.overload)&&const DeepCollectionEquality().equals(other.overloadDecided, _this.overloadDecided)&&const DeepCollectionEquality().equals(other.extraLogs, _this.extraLogs)&&const DeepCollectionEquality().equals(other.drafts, _this.drafts)&&const DeepCollectionEquality().equals(other.removedRows, _this.removedRows));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as WorkoutProgress;
-  return Object.hash(runtimeType,_this.dayId,_this.iteration,_this.currentPageKey,_this.workoutStart,_this.validUntil,const DeepCollectionEquality().hash(_this.pages),_this.routineId,_this.totalSets,const DeepCollectionEquality().hash(_this.overload),const DeepCollectionEquality().hash(_this.overloadDecided),const DeepCollectionEquality().hash(_this.extraLogs),const DeepCollectionEquality().hash(_this.drafts));
+  return Object.hash(runtimeType,_this.dayId,_this.iteration,_this.currentPageKey,_this.workoutStart,_this.validUntil,const DeepCollectionEquality().hash(_this.pages),_this.routineId,_this.totalSets,const DeepCollectionEquality().hash(_this.overload),const DeepCollectionEquality().hash(_this.overloadDecided),const DeepCollectionEquality().hash(_this.extraLogs),const DeepCollectionEquality().hash(_this.drafts),const DeepCollectionEquality().hash(_this.removedRows));
 }
 
 @override
 String toString() {
   final _this = this as WorkoutProgress;
-  return 'WorkoutProgress(dayId: ${_this.dayId}, iteration: ${_this.iteration}, currentPageKey: ${_this.currentPageKey}, workoutStart: ${_this.workoutStart}, validUntil: ${_this.validUntil}, pages: ${_this.pages}, routineId: ${_this.routineId}, totalSets: ${_this.totalSets}, overload: ${_this.overload}, overloadDecided: ${_this.overloadDecided}, extraLogs: ${_this.extraLogs}, drafts: ${_this.drafts})';
+  return 'WorkoutProgress(dayId: ${_this.dayId}, iteration: ${_this.iteration}, currentPageKey: ${_this.currentPageKey}, workoutStart: ${_this.workoutStart}, validUntil: ${_this.validUntil}, pages: ${_this.pages}, routineId: ${_this.routineId}, totalSets: ${_this.totalSets}, overload: ${_this.overload}, overloadDecided: ${_this.overloadDecided}, extraLogs: ${_this.extraLogs}, drafts: ${_this.drafts}, removedRows: ${_this.removedRows})';
 }
 
 
@@ -62,7 +63,7 @@ abstract mixin class $WorkoutProgressCopyWith<$Res>  {
   factory $WorkoutProgressCopyWith(WorkoutProgress value, $Res Function(WorkoutProgress) _then) = _$WorkoutProgressCopyWithImpl;
 @useResult
 $Res call({
- int dayId, int iteration, String currentPageKey, DateTime workoutStart, DateTime validUntil, Map<String, StoredPageProgress> pages, int? routineId, int? totalSets, Map<String, StoredOverloadChoice> overload, List<int> overloadDecided, Map<String, List<StoredLog>> extraLogs, Map<String, StoredRowDraft> drafts
+ int dayId, int iteration, String currentPageKey, DateTime workoutStart, DateTime validUntil, Map<String, StoredPageProgress> pages, int? routineId, int? totalSets, Map<String, StoredOverloadChoice> overload, List<int> overloadDecided, Map<String, List<StoredLog>> extraLogs, Map<String, StoredRowDraft> drafts, List<String> removedRows
 });
 
 
@@ -79,7 +80,7 @@ class _$WorkoutProgressCopyWithImpl<$Res>
 
 /// Create a copy of WorkoutProgress
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? dayId = null,Object? iteration = null,Object? currentPageKey = null,Object? workoutStart = null,Object? validUntil = null,Object? pages = null,Object? routineId = freezed,Object? totalSets = freezed,Object? overload = null,Object? overloadDecided = null,Object? extraLogs = null,Object? drafts = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? dayId = null,Object? iteration = null,Object? currentPageKey = null,Object? workoutStart = null,Object? validUntil = null,Object? pages = null,Object? routineId = freezed,Object? totalSets = freezed,Object? overload = null,Object? overloadDecided = null,Object? extraLogs = null,Object? drafts = null,Object? removedRows = null,}) {
   return _then(WorkoutProgress(
 dayId: null == dayId ? _self.dayId : dayId // ignore: cast_nullable_to_non_nullable
 as int,iteration: null == iteration ? _self.iteration : iteration // ignore: cast_nullable_to_non_nullable
@@ -93,7 +94,8 @@ as int?,overload: null == overload ? _self.overload : overload // ignore: cast_n
 as Map<String, StoredOverloadChoice>,overloadDecided: null == overloadDecided ? _self.overloadDecided : overloadDecided // ignore: cast_nullable_to_non_nullable
 as List<int>,extraLogs: null == extraLogs ? _self.extraLogs : extraLogs // ignore: cast_nullable_to_non_nullable
 as Map<String, List<StoredLog>>,drafts: null == drafts ? _self.drafts : drafts // ignore: cast_nullable_to_non_nullable
-as Map<String, StoredRowDraft>,
+as Map<String, StoredRowDraft>,removedRows: null == removedRows ? _self.removedRows : removedRows // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 
@@ -175,10 +177,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int dayId,  int iteration,  String currentPageKey,  DateTime workoutStart,  DateTime validUntil,  Map<String, StoredPageProgress> pages,  int? routineId,  int? totalSets,  Map<String, StoredOverloadChoice> overload,  List<int> overloadDecided,  Map<String, List<StoredLog>> extraLogs,  Map<String, StoredRowDraft> drafts)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int dayId,  int iteration,  String currentPageKey,  DateTime workoutStart,  DateTime validUntil,  Map<String, StoredPageProgress> pages,  int? routineId,  int? totalSets,  Map<String, StoredOverloadChoice> overload,  List<int> overloadDecided,  Map<String, List<StoredLog>> extraLogs,  Map<String, StoredRowDraft> drafts,  List<String> removedRows)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WorkoutProgress() when $default != null:
-return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutStart,_that.validUntil,_that.pages,_that.routineId,_that.totalSets,_that.overload,_that.overloadDecided,_that.extraLogs,_that.drafts);case _:
+return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutStart,_that.validUntil,_that.pages,_that.routineId,_that.totalSets,_that.overload,_that.overloadDecided,_that.extraLogs,_that.drafts,_that.removedRows);case _:
   return orElse();
 
 }
@@ -196,10 +198,10 @@ return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutSt
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int dayId,  int iteration,  String currentPageKey,  DateTime workoutStart,  DateTime validUntil,  Map<String, StoredPageProgress> pages,  int? routineId,  int? totalSets,  Map<String, StoredOverloadChoice> overload,  List<int> overloadDecided,  Map<String, List<StoredLog>> extraLogs,  Map<String, StoredRowDraft> drafts)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int dayId,  int iteration,  String currentPageKey,  DateTime workoutStart,  DateTime validUntil,  Map<String, StoredPageProgress> pages,  int? routineId,  int? totalSets,  Map<String, StoredOverloadChoice> overload,  List<int> overloadDecided,  Map<String, List<StoredLog>> extraLogs,  Map<String, StoredRowDraft> drafts,  List<String> removedRows)  $default,) {final _that = this;
 switch (_that) {
 case _WorkoutProgress():
-return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutStart,_that.validUntil,_that.pages,_that.routineId,_that.totalSets,_that.overload,_that.overloadDecided,_that.extraLogs,_that.drafts);}
+return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutStart,_that.validUntil,_that.pages,_that.routineId,_that.totalSets,_that.overload,_that.overloadDecided,_that.extraLogs,_that.drafts,_that.removedRows);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -213,10 +215,10 @@ return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutSt
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int dayId,  int iteration,  String currentPageKey,  DateTime workoutStart,  DateTime validUntil,  Map<String, StoredPageProgress> pages,  int? routineId,  int? totalSets,  Map<String, StoredOverloadChoice> overload,  List<int> overloadDecided,  Map<String, List<StoredLog>> extraLogs,  Map<String, StoredRowDraft> drafts)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int dayId,  int iteration,  String currentPageKey,  DateTime workoutStart,  DateTime validUntil,  Map<String, StoredPageProgress> pages,  int? routineId,  int? totalSets,  Map<String, StoredOverloadChoice> overload,  List<int> overloadDecided,  Map<String, List<StoredLog>> extraLogs,  Map<String, StoredRowDraft> drafts,  List<String> removedRows)?  $default,) {final _that = this;
 switch (_that) {
 case _WorkoutProgress() when $default != null:
-return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutStart,_that.validUntil,_that.pages,_that.routineId,_that.totalSets,_that.overload,_that.overloadDecided,_that.extraLogs,_that.drafts);case _:
+return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutStart,_that.validUntil,_that.pages,_that.routineId,_that.totalSets,_that.overload,_that.overloadDecided,_that.extraLogs,_that.drafts,_that.removedRows);case _:
   return null;
 
 }
@@ -228,7 +230,7 @@ return $default(_that.dayId,_that.iteration,_that.currentPageKey,_that.workoutSt
 @JsonSerializable()
 
 class _WorkoutProgress implements WorkoutProgress {
-  const _WorkoutProgress({required this.dayId, required this.iteration, required this.currentPageKey, required this.workoutStart, required this.validUntil,  Map<String, StoredPageProgress> pages = const {}, this.routineId, this.totalSets,  Map<String, StoredOverloadChoice> overload = const {},  List<int> overloadDecided = const [],  Map<String, List<StoredLog>> extraLogs = const {},  Map<String, StoredRowDraft> drafts = const {}}): _pages = pages,_overload = overload,_overloadDecided = overloadDecided,_extraLogs = extraLogs,_drafts = drafts;
+  const _WorkoutProgress({required this.dayId, required this.iteration, required this.currentPageKey, required this.workoutStart, required this.validUntil,  Map<String, StoredPageProgress> pages = const {}, this.routineId, this.totalSets,  Map<String, StoredOverloadChoice> overload = const {},  List<int> overloadDecided = const [],  Map<String, List<StoredLog>> extraLogs = const {},  Map<String, StoredRowDraft> drafts = const {},  List<String> removedRows = const []}): _pages = pages,_overload = overload,_overloadDecided = overloadDecided,_extraLogs = extraLogs,_drafts = drafts,_removedRows = removedRows;
   factory _WorkoutProgress.fromJson(Map<String, dynamic> json) => _$WorkoutProgressFromJson(json);
 
 @override final  int dayId;
@@ -285,6 +287,15 @@ class _WorkoutProgress implements WorkoutProgress {
   return EqualUnmodifiableMapView(_drafts);
 }
 
+/// Planned sets removed from the list layout, by page key
+ final  List<String> _removedRows;
+/// Planned sets removed from the list layout, by page key
+@override@JsonKey() List<String> get removedRows {
+  if (_removedRows is EqualUnmodifiableListView) return _removedRows;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_removedRows);
+}
+
 
 /// Create a copy of WorkoutProgress
 /// with the given fields replaced by the non-null parameter values.
@@ -299,18 +310,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkoutProgress&&(identical(other.dayId, dayId) || other.dayId == dayId)&&(identical(other.iteration, iteration) || other.iteration == iteration)&&(identical(other.currentPageKey, currentPageKey) || other.currentPageKey == currentPageKey)&&(identical(other.workoutStart, workoutStart) || other.workoutStart == workoutStart)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&const DeepCollectionEquality().equals(other.pages, _pages)&&(identical(other.routineId, routineId) || other.routineId == routineId)&&(identical(other.totalSets, totalSets) || other.totalSets == totalSets)&&const DeepCollectionEquality().equals(other.overload, _overload)&&const DeepCollectionEquality().equals(other.overloadDecided, _overloadDecided)&&const DeepCollectionEquality().equals(other.extraLogs, _extraLogs)&&const DeepCollectionEquality().equals(other.drafts, _drafts));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _WorkoutProgress&&(identical(other.dayId, dayId) || other.dayId == dayId)&&(identical(other.iteration, iteration) || other.iteration == iteration)&&(identical(other.currentPageKey, currentPageKey) || other.currentPageKey == currentPageKey)&&(identical(other.workoutStart, workoutStart) || other.workoutStart == workoutStart)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&const DeepCollectionEquality().equals(other.pages, _pages)&&(identical(other.routineId, routineId) || other.routineId == routineId)&&(identical(other.totalSets, totalSets) || other.totalSets == totalSets)&&const DeepCollectionEquality().equals(other.overload, _overload)&&const DeepCollectionEquality().equals(other.overloadDecided, _overloadDecided)&&const DeepCollectionEquality().equals(other.extraLogs, _extraLogs)&&const DeepCollectionEquality().equals(other.drafts, _drafts)&&const DeepCollectionEquality().equals(other.removedRows, _removedRows));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,dayId,iteration,currentPageKey,workoutStart,validUntil,const DeepCollectionEquality().hash(_pages),routineId,totalSets,const DeepCollectionEquality().hash(_overload),const DeepCollectionEquality().hash(_overloadDecided),const DeepCollectionEquality().hash(_extraLogs),const DeepCollectionEquality().hash(_drafts));
+    return Object.hash(runtimeType,dayId,iteration,currentPageKey,workoutStart,validUntil,const DeepCollectionEquality().hash(_pages),routineId,totalSets,const DeepCollectionEquality().hash(_overload),const DeepCollectionEquality().hash(_overloadDecided),const DeepCollectionEquality().hash(_extraLogs),const DeepCollectionEquality().hash(_drafts),const DeepCollectionEquality().hash(_removedRows));
 }
 
 @override
 String toString() {
-    return 'WorkoutProgress(dayId: $dayId, iteration: $iteration, currentPageKey: $currentPageKey, workoutStart: $workoutStart, validUntil: $validUntil, pages: $pages, routineId: $routineId, totalSets: $totalSets, overload: $overload, overloadDecided: $overloadDecided, extraLogs: $extraLogs, drafts: $drafts)';
+    return 'WorkoutProgress(dayId: $dayId, iteration: $iteration, currentPageKey: $currentPageKey, workoutStart: $workoutStart, validUntil: $validUntil, pages: $pages, routineId: $routineId, totalSets: $totalSets, overload: $overload, overloadDecided: $overloadDecided, extraLogs: $extraLogs, drafts: $drafts, removedRows: $removedRows)';
 }
 
 
@@ -321,7 +332,7 @@ abstract mixin class _$WorkoutProgressCopyWith<$Res> implements $WorkoutProgress
   factory _$WorkoutProgressCopyWith(_WorkoutProgress value, $Res Function(_WorkoutProgress) _then) = __$WorkoutProgressCopyWithImpl;
 @override @useResult
 $Res call({
- int dayId, int iteration, String currentPageKey, DateTime workoutStart, DateTime validUntil, Map<String, StoredPageProgress> pages, int? routineId, int? totalSets, Map<String, StoredOverloadChoice> overload, List<int> overloadDecided, Map<String, List<StoredLog>> extraLogs, Map<String, StoredRowDraft> drafts
+ int dayId, int iteration, String currentPageKey, DateTime workoutStart, DateTime validUntil, Map<String, StoredPageProgress> pages, int? routineId, int? totalSets, Map<String, StoredOverloadChoice> overload, List<int> overloadDecided, Map<String, List<StoredLog>> extraLogs, Map<String, StoredRowDraft> drafts, List<String> removedRows
 });
 
 
@@ -338,7 +349,7 @@ class __$WorkoutProgressCopyWithImpl<$Res>
 
 /// Create a copy of WorkoutProgress
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? dayId = null,Object? iteration = null,Object? currentPageKey = null,Object? workoutStart = null,Object? validUntil = null,Object? pages = null,Object? routineId = freezed,Object? totalSets = freezed,Object? overload = null,Object? overloadDecided = null,Object? extraLogs = null,Object? drafts = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? dayId = null,Object? iteration = null,Object? currentPageKey = null,Object? workoutStart = null,Object? validUntil = null,Object? pages = null,Object? routineId = freezed,Object? totalSets = freezed,Object? overload = null,Object? overloadDecided = null,Object? extraLogs = null,Object? drafts = null,Object? removedRows = null,}) {
   return _then(_WorkoutProgress(
 dayId: null == dayId ? _self.dayId : dayId // ignore: cast_nullable_to_non_nullable
 as int,iteration: null == iteration ? _self.iteration : iteration // ignore: cast_nullable_to_non_nullable
@@ -352,7 +363,8 @@ as int?,overload: null == overload ? _self._overload : overload // ignore: cast_
 as Map<String, StoredOverloadChoice>,overloadDecided: null == overloadDecided ? _self._overloadDecided : overloadDecided // ignore: cast_nullable_to_non_nullable
 as List<int>,extraLogs: null == extraLogs ? _self._extraLogs : extraLogs // ignore: cast_nullable_to_non_nullable
 as Map<String, List<StoredLog>>,drafts: null == drafts ? _self._drafts : drafts // ignore: cast_nullable_to_non_nullable
-as Map<String, StoredRowDraft>,
+as Map<String, StoredRowDraft>,removedRows: null == removedRows ? _self._removedRows : removedRows // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 

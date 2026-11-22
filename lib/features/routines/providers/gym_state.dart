@@ -227,6 +227,10 @@ class GymModeState {
   /// row key, so they survive leaving the workout
   final Map<String, RowDraft> rowDrafts;
 
+  /// Planned sets removed in the list layout by long-pressing their row, by
+  /// page key. They are neither shown nor required any more.
+  final Set<String> removedRows;
+
   /// What happened on the pages so far, by page key. Kept apart from the pages
   /// so that recalculating them doesn't lose it.
   final Map<String, PageProgress> progress;
@@ -260,6 +264,7 @@ class GymModeState {
     this.listLayout = true,
     this.extraLogs = const {},
     this.rowDrafts = const {},
+    this.removedRows = const {},
     this.progress = const {},
     this.addedExercises = const [],
     int? dayId,
@@ -314,6 +319,7 @@ class GymModeState {
     bool? listLayout,
     Map<int, List<Log>>? extraLogs,
     Map<String, RowDraft>? rowDrafts,
+    Set<String>? removedRows,
     Map<String, PageProgress>? progress,
     List<AddedExercise>? addedExercises,
   }) {
@@ -346,6 +352,7 @@ class GymModeState {
       listLayout: listLayout ?? this.listLayout,
       extraLogs: extraLogs ?? this.extraLogs,
       rowDrafts: rowDrafts ?? this.rowDrafts,
+      removedRows: removedRows ?? this.removedRows,
       progress: progress ?? this.progress,
       addedExercises: addedExercises ?? this.addedExercises,
     );
@@ -359,7 +366,9 @@ class GymModeState {
     final blocks = <int, List<SlotPageEntry>>{};
     for (final slotPage in pages.expand((p) => p.slotPages)) {
       final slotEntryId = slotPage.setConfigData?.slotEntryId;
-      if (slotPage.type == SlotPageType.log && slotEntryId != null) {
+      if (slotPage.type == SlotPageType.log &&
+          slotEntryId != null &&
+          !removedRows.contains(slotPage.key)) {
         blocks.putIfAbsent(slotEntryId, () => []).add(slotPage);
       }
     }
@@ -413,7 +422,10 @@ class GymModeState {
   /// optional and never in here.
   Iterable<SlotPageEntry> get requiredLogPages => pages
       .expand((p) => p.slotPages)
-      .where((p) => p.type == SlotPageType.log && isRequiredLogKey(p.key));
+      .where(
+        (p) =>
+            p.type == SlotPageType.log && isRequiredLogKey(p.key) && !removedRows.contains(p.key),
+      );
 
   /// Whether every planned set of the slot entry [slotEntryId] is logged
   bool requiredDone(int slotEntryId) => requiredLogPages

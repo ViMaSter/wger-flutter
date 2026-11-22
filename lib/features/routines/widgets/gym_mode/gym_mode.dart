@@ -61,12 +61,14 @@ class _GymModeState extends ConsumerState<GymMode> {
   bool _initialPageJumped = false;
   late final PageController _controller;
   late final GymModeVisibleNotifier _visibility;
+  late final GymStateNotifier _gymState;
 
   @override
   void initState() {
     super.initState();
     _controller = PageController(initialPage: 0);
     _visibility = ref.read(gymModeVisibleProvider.notifier);
+    _gymState = ref.read(gymStateProvider.notifier);
     // Follows the rest countdown for the paired watch and the end-of-rest alert
     ref.read(gymRestTimerProvider);
     _initData = _loadGymState();
@@ -78,6 +80,8 @@ class _GymModeState extends ConsumerState<GymMode> {
     // Providers can't change while the tree is being finalized
     final visibility = _visibility;
     scheduleMicrotask(() => visibility.set(false));
+    // A session whose sets were all unchecked again isn't kept
+    unawaited(_gymState.discardEmptySessions());
     super.dispose();
   }
 

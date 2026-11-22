@@ -212,6 +212,25 @@ class WorkoutLogRepository {
     await (_db.delete(_db.workoutLogTable)..where((t) => t.id.equals(id))).go();
   }
 
+  /// Deletes the session [sessionId] once no log refers to it any more, e.g.
+  /// after every set logged in a workout was undone. A session that still has
+  /// logs, also of other exercises, stays. True if it was deleted.
+  Future<bool> deleteSessionIfEmpty(String sessionId) => _db.transaction(() async {
+    final remaining =
+        await (_db.select(_db.workoutLogTable)
+              ..where((t) => t.sessionId.equals(sessionId))
+              ..limit(1))
+            .get();
+    if (remaining.isNotEmpty) {
+      return false;
+    }
+    final deleted = await (_db.delete(
+      _db.workoutSessionTable,
+    )..where((t) => t.id.equals(sessionId))).go();
+    _logger.finer('Deleted empty session $sessionId: ${deleted > 0}');
+    return deleted > 0;
+  });
+
   Future<void> updateLocalDrift(Log log) async {
     _logger.finer('Updating local workout log entry ${log.id}');
     final stmt = _db.update(_db.workoutLogTable)..where((t) => t.id.equals(log.id!));

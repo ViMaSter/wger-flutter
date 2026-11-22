@@ -1502,6 +1502,60 @@ void main() {
       expect(notifier.state.extraLogs, isEmpty);
     });
 
+    test('Leaving deletes the sessions that lost all their logs, only those', () async {
+      when(logRepo.deleteSessionIfEmpty(any)).thenAnswer((_) async => true);
+      // Like the repository, which puts a log without a session into one
+      var count = 0;
+      when(logRepo.addLocalDrift(any, dayId: anyNamed('dayId'))).thenAnswer((invocation) async {
+        (invocation.positionalArguments[0] as Log)
+          ..id = 'log-${++count}'
+          ..sessionId ??= 'session-today';
+      });
+      await notifier.logSetAt(keyOf(2), repetitions: 9, weight: 42.5);
+      await notifier.logSetAt(keyOf(4), repetitions: 9, weight: 42.5);
+
+      await notifier.discardEmptySessions();
+      verifyNever(logRepo.deleteSessionIfEmpty(any));
+
+      await notifier.unlogSetAt(keyOf(2));
+      await notifier.unlogSetAt(keyOf(4));
+      await notifier.discardEmptySessions();
+      verify(logRepo.deleteSessionIfEmpty('session-today')).called(1);
+
+      // Checked once, nothing again
+      await notifier.discardEmptySessions();
+      verifyNever(logRepo.deleteSessionIfEmpty(any));
+    });
+
+    test('Removing a planned row drops it from the plan and the option', () async {
+      final slotEntryId = notifier.state.getSlotEntryPageByIndex(2)!.setConfigData!.slotEntryId;
+      const option = OverloadOption(
+        type: OverloadType.moreReps,
+        sets: [
+          OverloadSet(weight: 100, repetitions: 4),
+          OverloadSet(weight: 100, repetitions: 3),
+          OverloadSet(weight: 100, repetitions: 2),
+        ],
+      );
+      notifier.selectOverloadOption(slotEntryId, option);
+      await notifier.logSetAt(keyOf(4), repetitions: 3, weight: 100);
+
+      await notifier.removeListRow(slotEntryId, pageKey: keyOf(4), optionIndex: 1);
+
+      verify(logRepo.deleteLocalDrift('log-1'));
+      expect(notifier.state.removedRows, {keyOf(4)});
+      expect(notifier.state.progressOf(keyOf(4)).done, isFalse);
+      expect(notifier.state.requiredLogPages.map((p) => p.key), isNot(contains(keyOf(4))));
+      expect(
+        notifier.state.logPagesBySlotEntry.expand((b) => b).map((p) => p.key),
+        isNot(contains(keyOf(4))),
+      );
+      expect(notifier.state.selectedOverload[slotEntryId]!.sets.map((s) => s.repetitions), [4, 2]);
+
+      notifier.clear();
+      expect(notifier.state.removedRows, isEmpty);
+    });
+
     test('A default option does not replace a choice, also not "as planned"', () {
       final slotEntryId = notifier.state.getSlotEntryPageByIndex(2)!.setConfigData!.slotEntryId;
       const option = OverloadOption(
