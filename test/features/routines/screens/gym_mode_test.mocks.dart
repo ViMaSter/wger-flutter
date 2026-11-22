@@ -698,6 +698,14 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i31.WorkoutNot
           as bool);
 
   @override
+  _i10.Stream<String?> get taps =>
+      (super.noSuchMethod(
+            Invocation.getter(#taps),
+            returnValue: _i10.Stream<String?>.empty(),
+          )
+          as _i10.Stream<String?>);
+
+  @override
   _i10.Future<void> initialize(_i32.WorkoutNotificationLabels? labels) =>
       (super.noSuchMethod(
             Invocation.method(#initialize, [labels]),
@@ -802,4 +810,12 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i31.WorkoutNot
             returnValueForMissingStub: _i10.Future<void>.value(),
           )
           as _i10.Future<void>);
+
+  @override
+  _i10.Future<String?> takeLaunchPayload() =>
+      (super.noSuchMethod(
+            Invocation.method(#takeLaunchPayload, []),
+            returnValue: _i10.Future<String?>.value(),
+          )
+          as _i10.Future<String?>);
 }

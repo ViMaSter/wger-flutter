@@ -24,6 +24,9 @@ import 'package:wger/l10n/generated/app_localizations.dart';
 /// reminded of the missing entries
 const WORKOUT_REMINDER_DELAY = Duration(minutes: 30);
 
+/// Payload of the reminder, tapping it opens the first missing set
+const WORKOUT_REMINDER_PAYLOAD = 'workout-reminder';
+
 /// The notification that reminds the user of sets not logged yet, after a
 /// while without logging anything
 class MissingEntriesReminder extends Equatable {
@@ -45,11 +48,11 @@ class MissingEntriesReminder extends Equatable {
   List<Object?> get props => [at, title, body, channelName];
 }
 
-/// The reminder for the workout [state] runs, null without a running workout
-/// or once every planned set is logged.
+/// The reminder for the workout [state] runs, null without a running workout,
+/// before its first logged set (a workout nothing was logged in never
+/// started) or once every planned set is logged.
 ///
-/// It is due [delay] after the last logged set, or after the start of the
-/// workout before the first one. [languageCode] picks the exercise names,
+/// It is due [delay] after the last logged set. [languageCode] picks the exercise names,
 /// by default the language of [i18n].
 MissingEntriesReminder? buildMissingEntriesReminder(
   GymModeState state,
@@ -61,7 +64,7 @@ MissingEntriesReminder? buildMissingEntriesReminder(
     return null;
   }
   final missing = state.missingRequired;
-  if (missing.isEmpty) {
+  if (missing.isEmpty || _loggedDates(state).isEmpty) {
     return null;
   }
 
@@ -77,17 +80,20 @@ MissingEntriesReminder? buildMissingEntriesReminder(
   );
 }
 
-/// When a set was last logged in this workout, the start of the workout if
-/// none was yet.
+/// The dates of the sets logged in this workout, planned and extra ones.
 ///
 /// The date of a log is when its form was opened, or when a set was logged
 /// without the form (notification, list layout), close to when it was saved.
-DateTime _lastActivity(GymModeState state) {
-  final dates = [
-    for (final progress in state.progress.values)
-      if (progress.done && progress.loggedEntry != null) progress.loggedEntry!.date,
-    for (final logs in state.extraLogs.values) ...logs.map((log) => log.date),
-  ];
-  // Logs of an earlier session restored with the progress don't move it back
-  return dates.fold(state.workoutStart, (last, date) => date.isAfter(last) ? date : last);
-}
+List<DateTime> _loggedDates(GymModeState state) => [
+  for (final progress in state.progress.values)
+    if (progress.done && progress.loggedEntry != null) progress.loggedEntry!.date,
+  for (final logs in state.extraLogs.values) ...logs.map((log) => log.date),
+];
+
+/// When a set was last logged in this workout, not before its start
+DateTime _lastActivity(GymModeState state) =>
+    // Logs of an earlier session restored with the progress don't move it back
+    _loggedDates(state).fold(
+      state.workoutStart,
+      (last, date) => date.isAfter(last) ? date : last,
+    );

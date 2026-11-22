@@ -74,11 +74,28 @@ void main() {
     );
   }
 
-  test('The workout start counts before the first log', () {
+  test('Nothing before the first logged set, the workout never started', () {
+    expect(build(), isNull);
+
+    logAll([blocks().first.first], start.add(const Duration(minutes: 5)));
     final reminder = build()!;
 
-    expect(reminder.at.isAtSameMomentAs(start.add(WORKOUT_REMINDER_DELAY)), isTrue);
+    expect(
+      reminder.at.isAtSameMomentAs(start.add(const Duration(minutes: 5) + WORKOUT_REMINDER_DELAY)),
+      isTrue,
+    );
     expect(reminder.title, 'Missed any entries?');
+  });
+
+  test('An extra set alone also starts the workout', () {
+    final slotEntryId = blocks().first.first.setConfigData!.slotEntryId;
+    notifier.state = notifier.state.copyWith(
+      extraLogs: {
+        slotEntryId: [Log(exerciseId: 1, date: start)],
+      },
+    );
+
+    expect(build(), isNotNull);
   });
 
   test('Due a delay after the last logged set', () {
@@ -96,8 +113,6 @@ void main() {
   });
 
   test('Names the first exercise with missing sets and counts the others', () {
-    expect(build()!.body, 'Bench press and 1 other exercise are missing entries');
-
     // One logged set still leaves the exercise incomplete
     logAll([blocks().first.first], start);
     expect(build()!.body, 'Bench press and 1 other exercise are missing entries');
@@ -130,6 +145,7 @@ void main() {
       ],
     );
 
+    logAll([blocks().first.first], start);
     expect(build()!.body, 'Bench press and 2 other exercises are missing entries');
   });
 

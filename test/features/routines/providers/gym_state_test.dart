@@ -2055,6 +2055,26 @@ void main() {
       );
     });
 
+    test('From the reminder: opens on the first missing set, once', () async {
+      // Logged the first set, then went back to the start page
+      await runWorkout(currentPage: 0);
+      final firstMissing = notifier.state.requiredLogPages
+          .firstWhere((p) => !notifier.state.progressOf(p.key).done)
+          .pageIndex;
+      expect(firstMissing, isNot(0));
+
+      notifier.showMissingOnOpen();
+      expect(await openDay1(notifier), firstMissing);
+      expect(notifier.state.currentPage, firstMissing);
+
+      notifier.setCurrentPage(0);
+      expect(await openDay1(notifier), 0, reason: 'Only the open right after the tap');
+
+      // Also after a restart, from the stored progress
+      final restarted = restartedNotifier()..showMissingOnOpen();
+      expect(await openDay1(restarted), firstMissing);
+    });
+
     test('Continues an interrupted workout where it stopped', () async {
       await runWorkout();
 

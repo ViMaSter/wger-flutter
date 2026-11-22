@@ -22,14 +22,20 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:wger/core/shared_preferences.dart';
 import 'package:wger/features/routines/models/workout_progress.dart';
 import 'package:wger/features/routines/notifications/workout_notification_controller.dart';
+import 'package:wger/features/routines/notifications/workout_notification_service.dart';
 import 'package:wger/features/routines/providers/workout_resume.dart';
 import 'package:wger/features/routines/screens/gym_mode.dart';
 
+import 'workout_resume_test.mocks.dart';
+
+@GenerateMocks([WorkoutNotificationService])
 void main() {
   final now = DateTime.utc(2026, 11, 22, 10);
 
@@ -114,7 +120,11 @@ void main() {
   group('continueInterruptedWorkout', () {
     Future<List<GymModeArguments>> pumpHome(WidgetTester tester, {bool gymOpen = false}) async {
       final opened = <GymModeArguments>[];
-      final container = ProviderContainer.test();
+      final service = MockWorkoutNotificationService();
+      when(service.takeLaunchPayload()).thenAnswer((_) async => null);
+      final container = ProviderContainer.test(
+        overrides: [workoutNotificationServiceProvider.overrideWithValue(service)],
+      );
       container.read(gymModeVisibleProvider.notifier).set(gymOpen);
       await tester.pumpWidget(
         UncontrolledProviderScope(

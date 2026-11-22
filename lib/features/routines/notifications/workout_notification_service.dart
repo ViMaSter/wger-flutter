@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:extended_image/extended_image.dart';
@@ -96,6 +97,13 @@ abstract class WorkoutNotificationService {
 
   /// Lets the platform suspend the app again after an action
   Future<void> actionHandled();
+
+  /// Payloads of notifications tapped while the app runs, actions excluded
+  Stream<String?> get taps;
+
+  /// The payload of the notification whose tap started the app, null if the
+  /// app was started otherwise. Only returned once per app start.
+  Future<String?> takeLaunchPayload();
 }
 
 /// For platforms without workout notifications
@@ -134,6 +142,12 @@ class NoopWorkoutNotificationService implements WorkoutNotificationService {
   Future<void> cancelReminder() async {}
 
   @override
+  Stream<String?> get taps => const Stream.empty();
+
+  @override
+  Future<String?> takeLaunchPayload() async => null;
+
+  @override
   Future<void> actionHandled() async {}
 }
 
@@ -151,6 +165,32 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
   final _logger = Logger('LocalWorkoutNotificationService');
   final _plugin = FlutterLocalNotificationsPlugin();
   Future<void>? _initialized;
+  final _taps = StreamController<String?>.broadcast();
+  bool _launchPayloadTaken = false;
+
+  @override
+  Stream<String?> get taps => _taps.stream;
+
+  @override
+  Future<String?> takeLaunchPayload() async {
+    if (_launchPayloadTaken) {
+      return null;
+    }
+    _launchPayloadTaken = true;
+    try {
+      await _initialized;
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      final response = details?.notificationResponse;
+      if (details?.didNotificationLaunchApp != true || response?.actionId != null) {
+        return null;
+      }
+      return response?.payload;
+    } catch (e) {
+      // Only decides where the workout opens, not worth failing the start for
+      _logger.warning('Could not read what started the app: $e');
+      return null;
+    }
+  }
 
   @override
   bool get supportsControls => defaultTargetPlatform == TargetPlatform.android;
@@ -193,6 +233,12 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
             ),
           ),
           onDidReceiveBackgroundNotificationResponse: workoutNotificationBackgroundHandler,
+          onDidReceiveNotificationResponse: (response) {
+            // Actions go through the background handler, see above
+            if (response.actionId == null) {
+              _taps.add(response.payload);
+            }
+          },
         )
         .then((_) {});
   }
@@ -378,6 +424,7 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
       scheduledDate: tz.TZDateTime.from(reminder.at, tz.UTC),
       title: reminder.title,
       body: reminder.body,
+      payload: WORKOUT_REMINDER_PAYLOAD,
       androidScheduleMode: exact
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,

@@ -33,6 +33,7 @@ import 'package:wger/features/routines/notifications/workout_reminder.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_notifier.dart';
+import 'package:wger/features/routines/providers/workout_resume.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
 /// Whether the gym mode screen is mounted
@@ -287,6 +288,14 @@ final workoutNotificationControllerProvider = Provider<WorkoutNotificationContro
     return controller;
   }
   unawaited(service.initialize(controller.labels));
+
+  // A tap on the reminder of missing entries opens the first one
+  final taps = service.taps.listen((payload) {
+    if (payload == WORKOUT_REMINDER_PAYLOAD) {
+      unawaited(openFirstMissingSet(ref));
+    }
+  });
+  ref.onDispose(taps.cancel);
 
   // Actions arrive from the background isolate
   final port = ReceivePort();

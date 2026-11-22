@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:clock/clock.dart';
@@ -46,6 +47,7 @@ void main() {
   late MockWorkoutLogRepository logRepo;
   late ProviderContainer container;
   late GymStateNotifier gymState;
+  late StreamController<String?> taps;
 
   setUp(() {
     SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
@@ -60,6 +62,9 @@ void main() {
     when(service.initialize(any)).thenAnswer((_) async {});
     when(service.scheduleReminder(any)).thenAnswer((_) async {});
     when(service.cancelReminder()).thenAnswer((_) async {});
+    taps = StreamController<String?>.broadcast();
+    addTearDown(taps.close);
+    when(service.taps).thenAnswer((_) => taps.stream);
     logRepo = MockWorkoutLogRepository();
     when(logRepo.addLocalDrift(any, dayId: anyNamed('dayId'))).thenAnswer((_) async {});
 
@@ -239,19 +244,43 @@ void main() {
       });
     }
 
-    test('Scheduled when the workout starts, also with gym mode on screen', () async {
+    test('Scheduled once a set is logged, also with gym mode on screen', () async {
       await start();
+      verifyNever(service.scheduleReminder(any));
+
+      await withClock(Clock.fixed(now), () async {
+        await gymState.logSetAt(gymState.state.logPagesBySlotEntry.first.first.key, repetitions: 5);
+        await settle();
+      });
 
       final reminder = lastReminder();
       expect(reminder.at, now.add(WORKOUT_REMINDER_DELAY));
       expect(reminder.title, 'Missed any entries?');
-      verifyNever(service.cancelReminder());
+    });
+
+    test('Tapping it in the open gym mode moves to the first missing set', () async {
+      await start();
+      container.read(gymModeVisibleProvider.notifier).set(true);
+      final [first, second, ...] = gymState.state.logPagesBySlotEntry.first;
+      await gymState.logSetAt(first.key, repetitions: 5);
+      gymState.setCurrentPage(0);
+
+      taps.add('some other notification');
+      await settle();
+      expect(gymState.state.currentPage, 0);
+
+      taps.add(WORKOUT_REMINDER_PAYLOAD);
+      await settle();
+      expect(gymState.state.currentPage, second.pageIndex);
     });
 
     test('Moves along with a newly logged set', () async {
       await start();
+      await withClock(Clock.fixed(now), () async {
+        await gymState.logSetAt(gymState.state.logPagesBySlotEntry.first.first.key, repetitions: 5);
+      });
       final later = now.add(const Duration(minutes: 10));
-      final firstLog = gymState.state.logPagesBySlotEntry.first.first;
+      final firstLog = gymState.state.logPagesBySlotEntry.first[1];
 
       await withClock(Clock.fixed(later), () async {
         await gymState.logSetAt(firstLog.key, repetitions: 5, weight: 50);
@@ -263,6 +292,10 @@ void main() {
 
     test('Unchanged reminders are not scheduled again', () async {
       await start();
+      await withClock(Clock.fixed(now), () async {
+        await gymState.logSetAt(gymState.state.logPagesBySlotEntry.first.first.key, repetitions: 5);
+        await settle();
+      });
       clearInteractions(service);
 
       await withClock(Clock.fixed(now), () async {
@@ -276,6 +309,10 @@ void main() {
 
     test('Cancelled once the workout is cleared', () async {
       await start();
+      await withClock(Clock.fixed(now), () async {
+        await gymState.logSetAt(gymState.state.logPagesBySlotEntry.first.first.key, repetitions: 5);
+        await settle();
+      });
       clearInteractions(service);
 
       await withClock(Clock.fixed(now), () async {

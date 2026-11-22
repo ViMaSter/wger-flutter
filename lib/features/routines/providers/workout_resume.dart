@@ -22,10 +22,14 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:wger/core/keys.dart';
 import 'package:wger/core/shared_preferences.dart';
 import 'package:wger/features/routines/models/workout_progress.dart';
 import 'package:wger/features/routines/notifications/workout_notification_controller.dart';
+import 'package:wger/features/routines/notifications/workout_notification_service.dart';
+import 'package:wger/features/routines/notifications/workout_reminder.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
+import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/screens/gym_mode.dart';
 
 final _logger = Logger('workoutResume');
@@ -86,8 +90,44 @@ Future<void> continueInterruptedWorkout(BuildContext context, WidgetRef ref) asy
   if (workout == null || !context.mounted || ref.read(gymModeVisibleProvider)) {
     return;
   }
+
+  // Started by tapping the reminder of missing entries: on to the first one
+  final launchPayload = await ref.read(workoutNotificationServiceProvider).takeLaunchPayload();
+  if (launchPayload == WORKOUT_REMINDER_PAYLOAD) {
+    ref.read(gymStateProvider.notifier).showMissingOnOpen();
+  }
+  if (!context.mounted) {
+    return;
+  }
   _logger.info('Continuing the interrupted workout of day ${workout.dayId}');
   await Navigator.of(context).pushNamed(
+    GymModeScreen.routeName,
+    arguments: GymModeArguments(workout.routineId, workout.dayId, workout.iteration),
+  );
+}
+
+/// Opens the first planned set not logged yet after the reminder of missing
+/// entries was tapped while the app runs: in the open gym mode, otherwise by
+/// opening the workout again.
+Future<void> openFirstMissingSet(Ref ref) async {
+  final notifier = ref.read(gymStateProvider.notifier);
+  if (ref.read(gymModeVisibleProvider)) {
+    notifier.showFirstMissingSet();
+    return;
+  }
+
+  final state = ref.read(gymStateProvider);
+  final routineId = state.isInitialized ? state.routine.id : null;
+  final ResumableWorkout? workout = routineId != null
+      ? (routineId: routineId, dayId: state.dayId, iteration: state.iteration)
+      : await workoutToResume();
+  final navigator = navigatorKey.currentState;
+  if (workout == null || navigator == null) {
+    return;
+  }
+  _logger.info('Opening the first missing set of day ${workout.dayId} from the reminder');
+  notifier.showMissingOnOpen();
+  await navigator.pushNamed(
     GymModeScreen.routeName,
     arguments: GymModeArguments(workout.routineId, workout.dayId, workout.iteration),
   );

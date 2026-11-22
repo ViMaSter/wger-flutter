@@ -234,7 +234,7 @@ class GymStateNotifier extends _$GymStateNotifier {
 
     if (resume && state.pages.isNotEmpty) {
       unawaited(verifyLoggedSets());
-      return initialPage;
+      return _takeFirstMissingPage() ?? initialPage;
     }
 
     calculatePages();
@@ -242,7 +242,38 @@ class GymStateNotifier extends _$GymStateNotifier {
     if (restoredPage != null) {
       unawaited(verifyLoggedSets());
     }
-    return restoredPage ?? initialPage;
+    return _takeFirstMissingPage() ?? restoredPage ?? initialPage;
+  }
+
+  /// Whether the next [open] starts on the first missing set, see
+  /// [showMissingOnOpen]
+  bool _showMissingOnOpen = false;
+
+  /// Makes the next [open] start on the first planned set not logged yet
+  /// instead of where the workout was left, e.g. from the reminder of
+  /// missing entries
+  void showMissingOnOpen() => _showMissingOnOpen = true;
+
+  /// The page of the first planned set not logged yet, null if all are
+  int? get _firstMissingPage =>
+      state.requiredLogPages.firstWhereOrNull((p) => !state.progressOf(p.key).done)?.pageIndex;
+
+  /// Moves to the first planned set not logged yet, if there is one
+  void showFirstMissingSet() {
+    if (_firstMissingPage case final page?) {
+      setCurrentPage(page);
+    }
+  }
+
+  /// The page of the first missing set if [showMissingOnOpen] asked for it,
+  /// moving there; asked once
+  int? _takeFirstMissingPage() {
+    if (!_showMissingOnOpen) {
+      return null;
+    }
+    _showMissingOnOpen = false;
+    showFirstMissingSet();
+    return _firstMissingPage;
   }
 
   /// Applies the stored progress to the freshly calculated pages
