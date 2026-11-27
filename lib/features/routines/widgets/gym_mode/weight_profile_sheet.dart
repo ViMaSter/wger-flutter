@@ -44,7 +44,10 @@ Future<void> showWeightProfileSheet(
 List<String> describeLoadout(AppLocalizations i18n, Loadout loadout, NumberFormat format) {
   String join(List<num> weights) => weights.map(format.format).join(' + ');
   return switch (loadout.kind) {
-    WeightProfileKind.fixed => [i18n.loadoutFixed(format.format(loadout.fixed ?? loadout.total))],
+    WeightProfileKind.fixed =>
+      loadout.pair
+          ? [i18n.loadoutFixedPair(format.format((loadout.fixed ?? loadout.total) / 2))]
+          : [i18n.loadoutFixed(format.format(loadout.fixed ?? loadout.total))],
     WeightProfileKind.plates => [
       i18n.loadoutBar(format.format(loadout.base)),
       if (loadout.perSide.isNotEmpty) i18n.loadoutPerSide(join(loadout.perSide)),
@@ -271,6 +274,14 @@ class _WeightProfileEditorState extends State<WeightProfileEditor> {
                   ),
                 ],
                 WeightProfileKind.fixed => [
+                  SwitchListTile(
+                    key: const ValueKey('weight-profile-pair'),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(i18n.weightProfilePair),
+                    subtitle: Text(i18n.weightProfilePairHint),
+                    value: _draft.pair,
+                    onChanged: (v) => setState(() => _draft = _draft.copyWith(pair: v)),
+                  ),
                   _WeightListEditor(
                     key: const ValueKey('weight-profile-fixed'),
                     label: i18n.weightProfileFixedWeights,

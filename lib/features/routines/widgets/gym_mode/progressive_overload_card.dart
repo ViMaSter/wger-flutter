@@ -240,6 +240,7 @@ class ProgressiveOverloadCard extends ConsumerWidget {
     OverloadType.heavier => i18n.progressiveOverloadHeavier,
     OverloadType.moreSets => i18n.progressiveOverloadMoreSets,
     OverloadType.asBefore => i18n.progressiveOverloadAsBefore,
+    OverloadType.muscleGroup => i18n.progressiveOverloadMuscleGroup,
     // Only offered in the list layout, after a set fell short
     OverloadType.fill => i18n.gymModeFillLowerWeightHelp,
   };

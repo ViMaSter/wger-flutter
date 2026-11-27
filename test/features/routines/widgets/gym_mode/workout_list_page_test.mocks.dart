@@ -7,6 +7,14 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:wger/core/language.dart' as _i12;
+import 'package:wger/core/search_options.dart' as _i6;
+import 'package:wger/features/exercises/models/category.dart' as _i8;
+import 'package:wger/features/exercises/models/equipment.dart' as _i10;
+import 'package:wger/features/exercises/models/exercise_filters.dart' as _i7;
+import 'package:wger/features/exercises/models/muscle.dart' as _i11;
+import 'package:wger/features/exercises/providers/exercise_repository.dart' as _i5;
+import 'package:wger/features/exercises/providers/exercises_notifier.dart' as _i9;
 import 'package:wger/features/routines/models/log.dart' as _i4;
 import 'package:wger/features/routines/providers/workout_logs_repository.dart' as _i2;
 
@@ -62,12 +70,13 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i2.WorkoutLogReposit
   _i3.Future<List<_i4.Log>> getLastSessionLogsByExercise(
     int? exerciseId, {
     required DateTime? before,
+    int? routineId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #getLastSessionLogsByExercise,
               [exerciseId],
-              {#before: before},
+              {#before: before, #routineId: routineId},
             ),
             returnValue: _i3.Future<List<_i4.Log>>.value(<_i4.Log>[]),
           )
@@ -87,6 +96,43 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i2.WorkoutLogReposit
             returnValue: _i3.Future<List<num>>.value(<num>[]),
           )
           as _i3.Future<List<num>>);
+
+  @override
+  _i3.Future<bool> hasLogsForSlotEntries(
+    int? routineId,
+    List<int>? slotEntryIds, {
+    required DateTime? since,
+    required DateTime? before,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #hasLogsForSlotEntries,
+              [routineId, slotEntryIds],
+              {#since: since, #before: before},
+            ),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<List<List<_i4.Log>>> getSessionsBefore({
+    required DateTime? before,
+    int? excludeRoutineId,
+    DateTime? excludeSince,
+    int? limit = 14,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getSessionsBefore, [], {
+              #before: before,
+              #excludeRoutineId: excludeRoutineId,
+              #excludeSince: excludeSince,
+              #limit: limit,
+            }),
+            returnValue: _i3.Future<List<List<_i4.Log>>>.value(
+              <List<_i4.Log>>[],
+            ),
+          )
+          as _i3.Future<List<List<_i4.Log>>>);
 
   @override
   _i3.Future<List<_i4.Log>> resubmitMissing(List<_i4.Log>? logs) =>
@@ -138,4 +184,92 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i2.WorkoutLogReposit
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+}
+
+/// A class which mocks [ExerciseRepository].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockExerciseRepository extends _i1.Mock implements _i5.ExerciseRepository {
+  MockExerciseRepository() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<List<int>> searchExerciseServer(
+    String? term, {
+    String? languageCode = 'en',
+    bool? searchEnglish = false,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #searchExerciseServer,
+              [term],
+              {#languageCode: languageCode, #searchEnglish: searchEnglish},
+            ),
+            returnValue: _i3.Future<List<int>>.value(<int>[]),
+          )
+          as _i3.Future<List<int>>);
+
+  @override
+  _i3.Future<List<int>> searchExerciseServerWithSearchMode(
+    String? term, {
+    String? languageCode = 'en',
+    _i6.SearchLanguage? searchLanguage = _i6.SearchLanguage.currentAndEnglish,
+    _i7.ExerciseSearchMode? searchMode = _i7.ExerciseSearchMode.fulltext,
+    Set<_i8.ExerciseCategory>? categories = const {},
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #searchExerciseServerWithSearchMode,
+              [term],
+              {
+                #languageCode: languageCode,
+                #searchLanguage: searchLanguage,
+                #searchMode: searchMode,
+                #categories: categories,
+              },
+            ),
+            returnValue: _i3.Future<List<int>>.value(<int>[]),
+          )
+          as _i3.Future<List<int>>);
+
+  @override
+  _i3.Stream<_i9.ExerciseState> watchAllDrift() =>
+      (super.noSuchMethod(
+            Invocation.method(#watchAllDrift, []),
+            returnValue: _i3.Stream<_i9.ExerciseState>.empty(),
+          )
+          as _i3.Stream<_i9.ExerciseState>);
+
+  @override
+  _i3.Stream<List<_i8.ExerciseCategory>> watchCategoriesDrift() =>
+      (super.noSuchMethod(
+            Invocation.method(#watchCategoriesDrift, []),
+            returnValue: _i3.Stream<List<_i8.ExerciseCategory>>.empty(),
+          )
+          as _i3.Stream<List<_i8.ExerciseCategory>>);
+
+  @override
+  _i3.Stream<List<_i10.Equipment>> watchEquipmentDrift() =>
+      (super.noSuchMethod(
+            Invocation.method(#watchEquipmentDrift, []),
+            returnValue: _i3.Stream<List<_i10.Equipment>>.empty(),
+          )
+          as _i3.Stream<List<_i10.Equipment>>);
+
+  @override
+  _i3.Stream<List<_i11.Muscle>> watchMusclesDrift() =>
+      (super.noSuchMethod(
+            Invocation.method(#watchMusclesDrift, []),
+            returnValue: _i3.Stream<List<_i11.Muscle>>.empty(),
+          )
+          as _i3.Stream<List<_i11.Muscle>>);
+
+  @override
+  _i3.Stream<List<_i12.Language>> watchLanguagesDrift() =>
+      (super.noSuchMethod(
+            Invocation.method(#watchLanguagesDrift, []),
+            returnValue: _i3.Stream<List<_i12.Language>>.empty(),
+          )
+          as _i3.Stream<List<_i12.Language>>);
 }

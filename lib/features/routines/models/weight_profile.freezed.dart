@@ -21,8 +21,11 @@ mixin _$WeightProfile {
  num get base;/// The increment of a [WeightProfileKind.linear] stack
  num? get step;/// The heaviest weight of a [WeightProfileKind.linear] stack
  num? get max;/// The plate sizes of [WeightProfileKind.plates], each usable many times
- List<num> get plates;/// The weights of [WeightProfileKind.fixed]
- List<num> get fixed;/// Add-ons of a [WeightProfileKind.linear] stack, each usable once. Repeat
+ List<num> get plates;/// The weights of [WeightProfileKind.fixed]. For a [pair] each is the
+/// weight of both together, as it is logged.
+ List<num> get fixed;/// Whether [WeightProfileKind.fixed] weights come as a pair, one in each
+/// hand (e.g. dumbbells)
+ bool get pair;/// Add-ons of a [WeightProfileKind.linear] stack, each usable once. Repeat
 /// an entry for several of the same size, e.g. [0.625, 0.625].
  List<num> get bonus;
 /// Create a copy of WeightProfile
@@ -38,20 +41,20 @@ $WeightProfileCopyWith<WeightProfile> get copyWith => _$WeightProfileCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as WeightProfile;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WeightProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.base, _this.base) || other.base == _this.base)&&(identical(other.step, _this.step) || other.step == _this.step)&&(identical(other.max, _this.max) || other.max == _this.max)&&const DeepCollectionEquality().equals(other.plates, _this.plates)&&const DeepCollectionEquality().equals(other.fixed, _this.fixed)&&const DeepCollectionEquality().equals(other.bonus, _this.bonus));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WeightProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.base, _this.base) || other.base == _this.base)&&(identical(other.step, _this.step) || other.step == _this.step)&&(identical(other.max, _this.max) || other.max == _this.max)&&const DeepCollectionEquality().equals(other.plates, _this.plates)&&const DeepCollectionEquality().equals(other.fixed, _this.fixed)&&(identical(other.pair, _this.pair) || other.pair == _this.pair)&&const DeepCollectionEquality().equals(other.bonus, _this.bonus));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as WeightProfile;
-  return Object.hash(runtimeType,_this.id,_this.name,_this.kind,_this.base,_this.step,_this.max,const DeepCollectionEquality().hash(_this.plates),const DeepCollectionEquality().hash(_this.fixed),const DeepCollectionEquality().hash(_this.bonus));
+  return Object.hash(runtimeType,_this.id,_this.name,_this.kind,_this.base,_this.step,_this.max,const DeepCollectionEquality().hash(_this.plates),const DeepCollectionEquality().hash(_this.fixed),_this.pair,const DeepCollectionEquality().hash(_this.bonus));
 }
 
 @override
 String toString() {
   final _this = this as WeightProfile;
-  return 'WeightProfile(id: ${_this.id}, name: ${_this.name}, kind: ${_this.kind}, base: ${_this.base}, step: ${_this.step}, max: ${_this.max}, plates: ${_this.plates}, fixed: ${_this.fixed}, bonus: ${_this.bonus})';
+  return 'WeightProfile(id: ${_this.id}, name: ${_this.name}, kind: ${_this.kind}, base: ${_this.base}, step: ${_this.step}, max: ${_this.max}, plates: ${_this.plates}, fixed: ${_this.fixed}, pair: ${_this.pair}, bonus: ${_this.bonus})';
 }
 
 
@@ -62,7 +65,7 @@ abstract mixin class $WeightProfileCopyWith<$Res>  {
   factory $WeightProfileCopyWith(WeightProfile value, $Res Function(WeightProfile) _then) = _$WeightProfileCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, WeightProfileKind kind, num base, num? step, num? max, List<num> plates, List<num> fixed, List<num> bonus
+ String id, String name, WeightProfileKind kind, num base, num? step, num? max, List<num> plates, List<num> fixed, bool pair, List<num> bonus
 });
 
 
@@ -79,7 +82,7 @@ class _$WeightProfileCopyWithImpl<$Res>
 
 /// Create a copy of WeightProfile
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? base = null,Object? step = freezed,Object? max = freezed,Object? plates = null,Object? fixed = null,Object? bonus = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? base = null,Object? step = freezed,Object? max = freezed,Object? plates = null,Object? fixed = null,Object? pair = null,Object? bonus = null,}) {
   return _then(WeightProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -89,7 +92,8 @@ as num,step: freezed == step ? _self.step : step // ignore: cast_nullable_to_non
 as num?,max: freezed == max ? _self.max : max // ignore: cast_nullable_to_non_nullable
 as num?,plates: null == plates ? _self.plates : plates // ignore: cast_nullable_to_non_nullable
 as List<num>,fixed: null == fixed ? _self.fixed : fixed // ignore: cast_nullable_to_non_nullable
-as List<num>,bonus: null == bonus ? _self.bonus : bonus // ignore: cast_nullable_to_non_nullable
+as List<num>,pair: null == pair ? _self.pair : pair // ignore: cast_nullable_to_non_nullable
+as bool,bonus: null == bonus ? _self.bonus : bonus // ignore: cast_nullable_to_non_nullable
 as List<num>,
   ));
 }
@@ -172,10 +176,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  WeightProfileKind kind,  num base,  num? step,  num? max,  List<num> plates,  List<num> fixed,  List<num> bonus)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  WeightProfileKind kind,  num base,  num? step,  num? max,  List<num> plates,  List<num> fixed,  bool pair,  List<num> bonus)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WeightProfile() when $default != null:
-return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_that.plates,_that.fixed,_that.bonus);case _:
+return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_that.plates,_that.fixed,_that.pair,_that.bonus);case _:
   return orElse();
 
 }
@@ -193,10 +197,10 @@ return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  WeightProfileKind kind,  num base,  num? step,  num? max,  List<num> plates,  List<num> fixed,  List<num> bonus)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  WeightProfileKind kind,  num base,  num? step,  num? max,  List<num> plates,  List<num> fixed,  bool pair,  List<num> bonus)  $default,) {final _that = this;
 switch (_that) {
 case _WeightProfile():
-return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_that.plates,_that.fixed,_that.bonus);}
+return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_that.plates,_that.fixed,_that.pair,_that.bonus);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -210,10 +214,10 @@ return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  WeightProfileKind kind,  num base,  num? step,  num? max,  List<num> plates,  List<num> fixed,  List<num> bonus)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  WeightProfileKind kind,  num base,  num? step,  num? max,  List<num> plates,  List<num> fixed,  bool pair,  List<num> bonus)?  $default,) {final _that = this;
 switch (_that) {
 case _WeightProfile() when $default != null:
-return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_that.plates,_that.fixed,_that.bonus);case _:
+return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_that.plates,_that.fixed,_that.pair,_that.bonus);case _:
   return null;
 
 }
@@ -225,7 +229,7 @@ return $default(_that.id,_that.name,_that.kind,_that.base,_that.step,_that.max,_
 @JsonSerializable()
 
 class _WeightProfile extends WeightProfile {
-  const _WeightProfile({required this.id, required this.name, required this.kind, this.base = 0, this.step, this.max,  List<num> plates = const [],  List<num> fixed = const [],  List<num> bonus = const []}): _plates = plates,_fixed = fixed,_bonus = bonus,super._();
+  const _WeightProfile({required this.id, required this.name, required this.kind, this.base = 0, this.step, this.max,  List<num> plates = const [],  List<num> fixed = const [], this.pair = false,  List<num> bonus = const []}): _plates = plates,_fixed = fixed,_bonus = bonus,super._();
   factory _WeightProfile.fromJson(Map<String, dynamic> json) => _$WeightProfileFromJson(json);
 
 @override final  String id;
@@ -247,15 +251,20 @@ class _WeightProfile extends WeightProfile {
   return EqualUnmodifiableListView(_plates);
 }
 
-/// The weights of [WeightProfileKind.fixed]
+/// The weights of [WeightProfileKind.fixed]. For a [pair] each is the
+/// weight of both together, as it is logged.
  final  List<num> _fixed;
-/// The weights of [WeightProfileKind.fixed]
+/// The weights of [WeightProfileKind.fixed]. For a [pair] each is the
+/// weight of both together, as it is logged.
 @override@JsonKey() List<num> get fixed {
   if (_fixed is EqualUnmodifiableListView) return _fixed;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_fixed);
 }
 
+/// Whether [WeightProfileKind.fixed] weights come as a pair, one in each
+/// hand (e.g. dumbbells)
+@override@JsonKey() final  bool pair;
 /// Add-ons of a [WeightProfileKind.linear] stack, each usable once. Repeat
 /// an entry for several of the same size, e.g. [0.625, 0.625].
  final  List<num> _bonus;
@@ -281,18 +290,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _WeightProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.base, base) || other.base == base)&&(identical(other.step, step) || other.step == step)&&(identical(other.max, max) || other.max == max)&&const DeepCollectionEquality().equals(other.plates, _plates)&&const DeepCollectionEquality().equals(other.fixed, _fixed)&&const DeepCollectionEquality().equals(other.bonus, _bonus));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _WeightProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.base, base) || other.base == base)&&(identical(other.step, step) || other.step == step)&&(identical(other.max, max) || other.max == max)&&const DeepCollectionEquality().equals(other.plates, _plates)&&const DeepCollectionEquality().equals(other.fixed, _fixed)&&(identical(other.pair, pair) || other.pair == pair)&&const DeepCollectionEquality().equals(other.bonus, _bonus));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,name,kind,base,step,max,const DeepCollectionEquality().hash(_plates),const DeepCollectionEquality().hash(_fixed),const DeepCollectionEquality().hash(_bonus));
+    return Object.hash(runtimeType,id,name,kind,base,step,max,const DeepCollectionEquality().hash(_plates),const DeepCollectionEquality().hash(_fixed),pair,const DeepCollectionEquality().hash(_bonus));
 }
 
 @override
 String toString() {
-    return 'WeightProfile(id: $id, name: $name, kind: $kind, base: $base, step: $step, max: $max, plates: $plates, fixed: $fixed, bonus: $bonus)';
+    return 'WeightProfile(id: $id, name: $name, kind: $kind, base: $base, step: $step, max: $max, plates: $plates, fixed: $fixed, pair: $pair, bonus: $bonus)';
 }
 
 
@@ -303,7 +312,7 @@ abstract mixin class _$WeightProfileCopyWith<$Res> implements $WeightProfileCopy
   factory _$WeightProfileCopyWith(_WeightProfile value, $Res Function(_WeightProfile) _then) = __$WeightProfileCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, WeightProfileKind kind, num base, num? step, num? max, List<num> plates, List<num> fixed, List<num> bonus
+ String id, String name, WeightProfileKind kind, num base, num? step, num? max, List<num> plates, List<num> fixed, bool pair, List<num> bonus
 });
 
 
@@ -320,7 +329,7 @@ class __$WeightProfileCopyWithImpl<$Res>
 
 /// Create a copy of WeightProfile
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? base = null,Object? step = freezed,Object? max = freezed,Object? plates = null,Object? fixed = null,Object? bonus = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? base = null,Object? step = freezed,Object? max = freezed,Object? plates = null,Object? fixed = null,Object? pair = null,Object? bonus = null,}) {
   return _then(_WeightProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -330,7 +339,8 @@ as num,step: freezed == step ? _self.step : step // ignore: cast_nullable_to_non
 as num?,max: freezed == max ? _self.max : max // ignore: cast_nullable_to_non_nullable
 as num?,plates: null == plates ? _self._plates : plates // ignore: cast_nullable_to_non_nullable
 as List<num>,fixed: null == fixed ? _self._fixed : fixed // ignore: cast_nullable_to_non_nullable
-as List<num>,bonus: null == bonus ? _self._bonus : bonus // ignore: cast_nullable_to_non_nullable
+as List<num>,pair: null == pair ? _self.pair : pair // ignore: cast_nullable_to_non_nullable
+as bool,bonus: null == bonus ? _self._bonus : bonus // ignore: cast_nullable_to_non_nullable
 as List<num>,
   ));
 }
@@ -353,20 +363,20 @@ $LoadoutCopyWith<Loadout> get copyWith => _$LoadoutCopyWithImpl<Loadout>(this as
 @override
 bool operator ==(Object other) {
   final _this = this as Loadout;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Loadout&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.base, _this.base) || other.base == _this.base)&&const DeepCollectionEquality().equals(other.perSide, _this.perSide)&&(identical(other.pin, _this.pin) || other.pin == _this.pin)&&const DeepCollectionEquality().equals(other.addOns, _this.addOns)&&(identical(other.fixed, _this.fixed) || other.fixed == _this.fixed));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Loadout&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.base, _this.base) || other.base == _this.base)&&const DeepCollectionEquality().equals(other.perSide, _this.perSide)&&(identical(other.pin, _this.pin) || other.pin == _this.pin)&&const DeepCollectionEquality().equals(other.addOns, _this.addOns)&&(identical(other.fixed, _this.fixed) || other.fixed == _this.fixed)&&(identical(other.pair, _this.pair) || other.pair == _this.pair));
 }
 
 
 @override
 int get hashCode {
   final _this = this as Loadout;
-  return Object.hash(runtimeType,_this.kind,_this.base,const DeepCollectionEquality().hash(_this.perSide),_this.pin,const DeepCollectionEquality().hash(_this.addOns),_this.fixed);
+  return Object.hash(runtimeType,_this.kind,_this.base,const DeepCollectionEquality().hash(_this.perSide),_this.pin,const DeepCollectionEquality().hash(_this.addOns),_this.fixed,_this.pair);
 }
 
 @override
 String toString() {
   final _this = this as Loadout;
-  return 'Loadout(kind: ${_this.kind}, base: ${_this.base}, perSide: ${_this.perSide}, pin: ${_this.pin}, addOns: ${_this.addOns}, fixed: ${_this.fixed})';
+  return 'Loadout(kind: ${_this.kind}, base: ${_this.base}, perSide: ${_this.perSide}, pin: ${_this.pin}, addOns: ${_this.addOns}, fixed: ${_this.fixed}, pair: ${_this.pair})';
 }
 
 
@@ -377,7 +387,7 @@ abstract mixin class $LoadoutCopyWith<$Res>  {
   factory $LoadoutCopyWith(Loadout value, $Res Function(Loadout) _then) = _$LoadoutCopyWithImpl;
 @useResult
 $Res call({
- WeightProfileKind kind, num base, List<num> perSide, num? pin, List<num> addOns, num? fixed
+ WeightProfileKind kind, num base, List<num> perSide, num? pin, List<num> addOns, num? fixed, bool pair
 });
 
 
@@ -394,7 +404,7 @@ class _$LoadoutCopyWithImpl<$Res>
 
 /// Create a copy of Loadout
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? kind = null,Object? base = null,Object? perSide = null,Object? pin = freezed,Object? addOns = null,Object? fixed = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? kind = null,Object? base = null,Object? perSide = null,Object? pin = freezed,Object? addOns = null,Object? fixed = freezed,Object? pair = null,}) {
   return _then(Loadout(
 kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
 as WeightProfileKind,base: null == base ? _self.base : base // ignore: cast_nullable_to_non_nullable
@@ -402,7 +412,8 @@ as num,perSide: null == perSide ? _self.perSide : perSide // ignore: cast_nullab
 as List<num>,pin: freezed == pin ? _self.pin : pin // ignore: cast_nullable_to_non_nullable
 as num?,addOns: null == addOns ? _self.addOns : addOns // ignore: cast_nullable_to_non_nullable
 as List<num>,fixed: freezed == fixed ? _self.fixed : fixed // ignore: cast_nullable_to_non_nullable
-as num?,
+as num?,pair: null == pair ? _self.pair : pair // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

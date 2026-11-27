@@ -6271,6 +6271,61 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
           as String);
 
   @override
+  String get weightProfilePair =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfilePair),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfilePair),
+            ),
+          )
+          as String);
+
+  @override
+  String get weightProfilePairHint =>
+      (super.noSuchMethod(
+            Invocation.getter(#weightProfilePairHint),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#weightProfilePairHint),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadMuscleGroup =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadMuscleGroup),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadMuscleGroup),
+            ),
+          )
+          as String);
+
+  @override
+  String get progressiveOverloadMuscleGroupShort =>
+      (super.noSuchMethod(
+            Invocation.getter(#progressiveOverloadMuscleGroupShort),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#progressiveOverloadMuscleGroupShort),
+            ),
+          )
+          as String);
+
+  @override
+  String get muscleOverloadTitle =>
+      (super.noSuchMethod(
+            Invocation.getter(#muscleOverloadTitle),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.getter(#muscleOverloadTitle),
+            ),
+          )
+          as String);
+
+  @override
   String certsNotVerifiedDetail(String? host) =>
       (super.noSuchMethod(
             Invocation.method(#certsNotVerifiedDetail, [host]),
@@ -6321,6 +6376,17 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
             returnValue: _i3.dummyValue<String>(
               this,
               Invocation.method(#topSet, [value]),
+            ),
+          )
+          as String);
+
+  @override
+  String workoutNotificationRestEndsSoon(int? seconds) =>
+      (super.noSuchMethod(
+            Invocation.method(#workoutNotificationRestEndsSoon, [seconds]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#workoutNotificationRestEndsSoon, [seconds]),
             ),
           )
           as String);
@@ -7147,6 +7213,62 @@ class MockAppLocalizations extends _i1.Mock implements _i2.AppLocalizations {
             returnValue: _i3.dummyValue<String>(
               this,
               Invocation.method(#loadoutFixed, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String loadoutFixedPair(String? weight) =>
+      (super.noSuchMethod(
+            Invocation.method(#loadoutFixedPair, [weight]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#loadoutFixedPair, [weight]),
+            ),
+          )
+          as String);
+
+  @override
+  String muscleOverloadCompared(String? date) =>
+      (super.noSuchMethod(
+            Invocation.method(#muscleOverloadCompared, [date]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#muscleOverloadCompared, [date]),
+            ),
+          )
+          as String);
+
+  @override
+  String muscleOverloadTarget(
+    String? muscle,
+    String? planned,
+    String? baseline,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#muscleOverloadTarget, [
+              muscle,
+              planned,
+              baseline,
+            ]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#muscleOverloadTarget, [
+                muscle,
+                planned,
+                baseline,
+              ]),
+            ),
+          )
+          as String);
+
+  @override
+  String muscleOverloadGap(String? muscle, String? missing) =>
+      (super.noSuchMethod(
+            Invocation.method(#muscleOverloadGap, [muscle, missing]),
+            returnValue: _i3.dummyValue<String>(
+              this,
+              Invocation.method(#muscleOverloadGap, [muscle, missing]),
             ),
           )
           as String);

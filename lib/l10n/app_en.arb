@@ -382,6 +382,11 @@
   "gymModeExactAlarmAllow": "Allow",
   "gymModeWorkoutNotificationHelp": "Allows accessing and controlling the current workout via a persistent notification",
   "workoutNotificationRestOver": "Rest is over",
+  "workoutNotificationRestEndsSoon": "{seconds, plural, one{{seconds} second of rest left} other{{seconds} seconds of rest left}}",
+  "@workoutNotificationRestEndsSoon": {
+    "description": "Title of the notification that sounds shortly before the rest is over",
+    "placeholders": {"seconds": {"type": "int"}}
+  },
   "workoutNotificationNext": "Next: {set}",
   "@workoutNotificationNext": {
     "description": "Notification text with the next planned set, e.g. 'Next: Bench press 3 × 100 kg'",
@@ -2310,5 +2315,23 @@
   "loadoutAddOn": "Add-ons: {weights}",
   "@loadoutAddOn": {"description": "Plate math: add-on weights to put on top, e.g. 'Add-ons: 0.625 + 0.625'", "placeholders": {"weights": {"type": "String"}}},
   "loadoutFixed": "Take {weight}",
-  "@loadoutFixed": {"description": "Plate math for fixed weights: which weight to take", "placeholders": {"weight": {"type": "String"}}}
+  "@loadoutFixed": {"description": "Plate math for fixed weights: which weight to take", "placeholders": {"weight": {"type": "String"}}},
+  "loadoutFixedPair": "Take {weight} in each hand",
+  "@loadoutFixedPair": {"description": "Plate math for a pair of fixed weights such as dumbbells: the weight of each one, half the logged total", "placeholders": {"weight": {"type": "String"}}},
+  "weightProfilePair": "Pair, one in each hand",
+  "@weightProfilePair": {"description": "Switch marking fixed weights as a pair, e.g. dumbbells"},
+  "weightProfilePairHint": "Enter both together, as you log them",
+  "@weightProfilePairHint": {"description": "Hint below the pair switch: the weights list holds the total of both, e.g. 30 for two 15 kg dumbbells"},
+  "progressiveOverloadMuscleGroup": "Muscle group target",
+  "@progressiveOverloadMuscleGroup": {"description": "Overload option after a programme switch: sets chosen so every muscle group beats the most similar session of the previous programme"},
+  "progressiveOverloadMuscleGroupShort": "Muscle groups",
+  "@progressiveOverloadMuscleGroupShort": {"description": "Short chip label of the 'Muscle group target' overload option"},
+  "muscleOverloadTitle": "Programme switch",
+  "@muscleOverloadTitle": {"description": "Title of the gym mode card shown on the first session of a day after switching programmes"},
+  "muscleOverloadCompared": "Overload per muscle group compared with your session on {date}",
+  "@muscleOverloadCompared": {"description": "Subtitle of the programme switch card, date of the most similar session before the switch", "placeholders": {"date": {"type": "String"}}},
+  "muscleOverloadTarget": "{muscle}: {planned} vs {baseline}",
+  "@muscleOverloadTarget": {"description": "One muscle group on the programme switch card: today's planned volume vs the volume of the compared session, e.g. 'Chest: 1,320 vs 1,285'", "placeholders": {"muscle": {"type": "String"}, "planned": {"type": "String"}, "baseline": {"type": "String"}}},
+  "muscleOverloadGap": "{muscle}: {missing} short within the planned ranges",
+  "@muscleOverloadGap": {"description": "A muscle group the planned sets, reps and weights can't get beyond the compared session, with the missing volume", "placeholders": {"muscle": {"type": "String"}, "missing": {"type": "String"}}}
 }

@@ -18,13 +18,22 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:wger/core/network/auth_notifier.dart';
+import 'package:wger/core/network/auth_state.dart';
 import 'package:wger/core/shared_preferences.dart';
 import 'package:wger/features/routines/models/weight_profile.dart';
 import 'package:wger/features/routines/providers/available_weights_notifier.dart';
 import 'package:wger/features/routines/providers/weight_profiles_notifier.dart';
+import 'package:wger/features/routines/providers/weight_profiles_repository.dart';
 
+import '../../../helpers/fake_auth_notifier.dart';
+import 'weight_profiles_notifier_test.mocks.dart';
+
+@GenerateMocks([WeightProfilesRepository])
 void main() {
   setUp(() {
     SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
@@ -122,5 +131,126 @@ void main() {
     await PreferenceHelper.asyncPref.setString(PREFS_WEIGHT_PROFILES, 'not json');
 
     expect((await ProviderContainer.test().read(weightProfilesProvider.future)).profiles, isEmpty);
+  });
+
+  group('on the server', () {
+    late MockWeightProfilesRepository repository;
+    final storedAt = DateTime.utc(2026, 11, 26, 3);
+    const rack = WeightProfile(
+      id: 'rack',
+      name: 'Dumbbells',
+      kind: WeightProfileKind.fixed,
+      fixed: [20, 30],
+      pair: true,
+    );
+    const remote = WeightProfilesState(profiles: [rack], assignments: {7: 'rack'});
+
+    setUp(() {
+      repository = MockWeightProfilesRepository();
+      when(repository.available).thenReturn(true);
+      when(repository.push(any)).thenAnswer((_) async => storedAt);
+    });
+
+    ProviderContainer loggedIn() => ProviderContainer.test(
+      overrides: [
+        weightProfilesRepositoryProvider.overrideWithValue(repository),
+        authProvider.overrideWith(
+          () => FakeAuthNotifier(
+            const AuthState(status: AuthStatus.loggedIn, serverUrl: 'https://wger.example'),
+          ),
+        ),
+      ],
+    );
+
+    /// Builds the profiles and lets the sync after the login run
+    Future<WeightProfilesState> opened(ProviderContainer container) async {
+      container.read(authProvider);
+      await container.read(weightProfilesProvider.future);
+      await container.read(authProvider.future);
+      await pumpEventQueue();
+      return container.read(weightProfilesProvider.future);
+    }
+
+    test('a fresh install takes over what the server has', () async {
+      when(repository.fetch()).thenAnswer((_) async => (updatedAt: storedAt, state: remote));
+
+      final state = await opened(loggedIn());
+
+      expect(state, remote);
+      verifyNever(repository.push(any));
+      // Also there for the next start, offline
+      final restarted = await ProviderContainer.test().read(weightProfilesProvider.future);
+      expect(restarted.profileFor(7)!.pair, isTrue);
+    });
+
+    test('a change is sent as a whole', () async {
+      when(repository.fetch()).thenAnswer((_) async => (updatedAt: null, state: null));
+      final container = loggedIn();
+      await opened(container);
+
+      await container.read(weightProfilesProvider.notifier).upsertProfile(rack);
+      await pumpEventQueue();
+
+      final sent = verify(repository.push(captureAny)).captured.single as WeightProfilesState;
+      expect(sent.profiles.single, rack);
+      expect(await PreferenceHelper.asyncPref.getBool(PREFS_WEIGHT_PROFILES_UNSENT), isFalse);
+    });
+
+    test('a change the server did not get is sent on the next login, not overwritten', () async {
+      when(repository.fetch()).thenAnswer((_) async => (updatedAt: null, state: null));
+      when(repository.push(any)).thenThrow(Exception('offline'));
+      final first = loggedIn();
+      await opened(first);
+      await first.read(weightProfilesProvider.notifier).upsertProfile(cable);
+      await pumpEventQueue();
+      expect(await PreferenceHelper.asyncPref.getBool(PREFS_WEIGHT_PROFILES_UNSENT), isTrue);
+
+      // Meanwhile the server has an older version
+      when(repository.fetch()).thenAnswer((_) async => (updatedAt: storedAt, state: remote));
+      when(repository.push(any)).thenAnswer((_) async => storedAt);
+      final state = await opened(loggedIn());
+
+      expect(state.profiles.single, cable);
+      final sent = verify(repository.push(captureAny)).captured.last as WeightProfilesState;
+      expect(sent.profiles.single, cable);
+    });
+
+    test('the version in sync is not taken over again', () async {
+      when(repository.fetch()).thenAnswer((_) async => (updatedAt: storedAt, state: remote));
+      final first = loggedIn();
+      await opened(first);
+      await first.read(weightProfilesProvider.notifier).deleteProfile('rack');
+      await pumpEventQueue();
+
+      // The server answers the push with the same time in this test
+      final state = await opened(loggedIn());
+
+      expect(state.profiles, isEmpty);
+    });
+
+    test('a server without the endpoint changes nothing', () async {
+      when(repository.fetch()).thenAnswer((_) async => null);
+      await PreferenceHelper.asyncPref.setString(
+        PREFS_WEIGHT_PROFILES,
+        '{"profiles": [], "assignments": {}}',
+      );
+
+      final state = await opened(loggedIn());
+
+      expect(state.profiles, isEmpty);
+      verifyNever(repository.push(any));
+    });
+
+    test('nothing is fetched while logged out', () async {
+      final state = await ProviderContainer.test(
+        overrides: [
+          weightProfilesRepositoryProvider.overrideWithValue(repository),
+          authProvider.overrideWith(() => FakeAuthNotifier(const AuthState())),
+        ],
+      ).read(weightProfilesProvider.future);
+
+      expect(state.profiles, isEmpty);
+      verifyNever(repository.fetch());
+    });
   });
 }

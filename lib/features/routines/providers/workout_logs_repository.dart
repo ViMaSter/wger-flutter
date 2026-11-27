@@ -90,13 +90,20 @@ class WorkoutLogRepository {
   /// oldest first, with their units. Empty if there is none.
   ///
   /// The session is the one of the newest log before [before], logs without a
-  /// session are grouped by calendar day instead.
+  /// session are grouped by calendar day instead. With [routineId] only the
+  /// logs of that routine count.
   Future<List<Log>> getLastSessionLogsByExercise(
     int exerciseId, {
     required DateTime before,
+    int? routineId,
   }) async {
     final latestQuery = _db.select(_db.workoutLogTable)
-      ..where((t) => t.exerciseId.equals(exerciseId) & t.date.isSmallerThanValue(before))
+      ..where(
+        (t) =>
+            t.exerciseId.equals(exerciseId) &
+            t.date.isSmallerThanValue(before) &
+            (routineId == null ? const Constant(true) : t.routineId.equals(routineId)),
+      )
       ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
       ..limit(1);
     final latest = await latestQuery.getSingleOrNull();
@@ -107,6 +114,9 @@ class WorkoutLogRepository {
     var condition =
         _db.workoutLogTable.exerciseId.equals(exerciseId) &
         _db.workoutLogTable.date.isSmallerThanValue(before);
+    if (routineId != null) {
+      condition &= _db.workoutLogTable.routineId.equals(routineId);
+    }
     if (latest.sessionId != null) {
       condition &= _db.workoutLogTable.sessionId.equals(latest.sessionId!);
     } else {
@@ -141,6 +151,69 @@ class WorkoutLogRepository {
       ..where(condition)
       ..orderBy([OrderingTerm(expression: weight)]);
     return (await query.get()).map((row) => row.read(weight)).nonNulls.toList();
+  }
+
+  /// Whether any of [slotEntryIds] of [routineId] was logged from [since] up
+  /// to [before], e.g. whether a day was trained since its routine started
+  Future<bool> hasLogsForSlotEntries(
+    int routineId,
+    List<int> slotEntryIds, {
+    required DateTime since,
+    required DateTime before,
+  }) async {
+    if (slotEntryIds.isEmpty) {
+      return false;
+    }
+    final query = _db.select(_db.workoutLogTable)
+      ..where(
+        (t) =>
+            t.routineId.equals(routineId) &
+            t.slotEntryId.isIn(slotEntryIds) &
+            t.date.isBiggerOrEqualValue(since) &
+            t.date.isSmallerThanValue(before),
+      )
+      ..limit(1);
+    return await query.getSingleOrNull() != null;
+  }
+
+  /// The sets of the last [limit] sessions before [before], newest session
+  /// first and each oldest set first, with their units. Logs without a
+  /// session are grouped by calendar day.
+  ///
+  /// Leaves out the logs of [excludeRoutineId] from [excludeSince] on, the
+  /// current run of a routine, so only what came before it is returned.
+  Future<List<List<Log>>> getSessionsBefore({
+    required DateTime before,
+    int? excludeRoutineId,
+    DateTime? excludeSince,
+    int limit = 14,
+  }) async {
+    final log = _db.workoutLogTable;
+    var condition = log.date.isSmallerThanValue(before);
+    if (excludeRoutineId != null) {
+      // NULL-safe: logs without a routine stay in
+      var current = log.routineId.equals(excludeRoutineId);
+      if (excludeSince != null) {
+        current &= log.date.isBiggerOrEqualValue(excludeSince);
+      }
+      condition &= current.not() | log.routineId.isNull();
+    }
+    final query = _selectWithUnits()
+      ..where(condition)
+      ..orderBy([OrderingTerm(expression: log.date, mode: OrderingMode.desc)])
+      ..limit(limit * 60);
+
+    final sessions = <String, List<Log>>{};
+    for (final row in await query.get()) {
+      final entry = _readWithUnits(row);
+      final local = entry.date.toLocal();
+      final key = entry.sessionId ?? 'day:${local.year}-${local.month}-${local.day}';
+      if (!sessions.containsKey(key) && sessions.length == limit) {
+        continue;
+      }
+      sessions.putIfAbsent(key, () => []).add(entry);
+    }
+    return [for (final logs in sessions.values) logs.reversed.toList()];
   }
 
   /// Writes those of [logs] again whose rows are gone, keeping their IDs so

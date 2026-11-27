@@ -296,6 +296,30 @@ void main() {
       );
     });
 
+    test('with a routine, the newest session of that routine, only its sets', () async {
+      // The previous run of the routine: 2 × 12
+      await insert(
+        makeLog(sessionId: 'run1', routineId: 4, date: DateTime.utc(2026, 7, 16), weight: 35),
+      );
+      await insert(
+        makeLog(sessionId: 'run1', routineId: 4, date: DateTime.utc(2026, 7, 16, 0, 5), weight: 35),
+      );
+      // Newer, in another routine; a set without a routine logged into the same session
+      await insert(
+        makeLog(sessionId: 'heavy', routineId: 2, date: DateTime.utc(2026, 11, 21), weight: 55),
+      );
+      await insert(
+        makeLog(sessionId: 'run1', routineId: null, date: DateTime.utc(2026, 7, 16, 0, 9)),
+      );
+
+      final before = DateTime.utc(2026, 11, 30);
+      final inRoutine = await repo.getLastSessionLogsByExercise(1, before: before, routineId: 4);
+      final any = await repo.getLastSessionLogsByExercise(1, before: before);
+
+      expect(inRoutine.map((l) => l.weight), [35, 35]);
+      expect(any.map((l) => l.weight), [55]);
+    });
+
     test('returns the sets of the newest session before, oldest first', () async {
       await seedUnits();
       // An older session
@@ -638,6 +662,99 @@ void main() {
       expect(await repo.getDistinctWeightsByExercise(1, weightUnitId: 1), [20]);
       expect(await repo.getDistinctWeightsByExercise(1, weightUnitId: 2), [45]);
       expect(await repo.getDistinctWeightsByExercise(1), [20, 45]);
+    });
+  });
+
+  group('hasLogsForSlotEntries', () {
+    // The routine starts on this calendar day, local midnight
+    final start = DateTime(2026, 11, 29);
+    final before = DateTime(2026, 12, 6, 18);
+
+    Future<bool> trained() => repo.hasLogsForSlotEntries(100, [7, 8], since: start, before: before);
+
+    test('is false for a day last trained the evening before the start', () async {
+      await repo.addLocalDrift(
+        makeLog(sessionId: 's', date: DateTime(2026, 11, 28, 23, 30))..slotEntryId = 7,
+      );
+
+      expect(await trained(), isFalse);
+    });
+
+    test('is true once one of the slot entries was logged on the start day', () async {
+      await repo.addLocalDrift(
+        makeLog(sessionId: 's', date: DateTime(2026, 11, 29, 0, 30))..slotEntryId = 8,
+      );
+
+      expect(await trained(), isTrue);
+    });
+
+    test('ignores other slot entries, other routines and the running workout', () async {
+      final day = DateTime(2026, 12, 1, 18);
+      await repo.addLocalDrift(makeLog(sessionId: 's1', date: day)..slotEntryId = 9);
+      await repo.addLocalDrift(
+        makeLog(sessionId: 's2', routineId: 101, date: day)..slotEntryId = 7,
+      );
+      await repo.addLocalDrift(makeLog(sessionId: 's3', date: before)..slotEntryId = 7);
+
+      expect(await trained(), isFalse);
+    });
+  });
+
+  group('getSessionsBefore', () {
+    test('groups by session, newest session first and each oldest set first', () async {
+      await seedUnits();
+      await repo.addLocalDrift(makeLog(sessionId: 'old', date: DateTime.utc(2026, 11, 10, 18)));
+      await repo.addLocalDrift(
+        makeLog(sessionId: 'new', date: DateTime.utc(2026, 11, 20, 18), weight: 60),
+      );
+      await repo.addLocalDrift(
+        makeLog(sessionId: 'new', date: DateTime.utc(2026, 11, 20, 18, 5), weight: 70),
+      );
+      await repo.addLocalDrift(makeLog(sessionId: 'later', date: DateTime.utc(2026, 11, 25)));
+
+      final sessions = await repo.getSessionsBefore(before: DateTime.utc(2026, 11, 22));
+
+      expect(sessions.map((s) => s.first.sessionId), ['new', 'old']);
+      expect(sessions.first.map((l) => l.weight), [60, 70]);
+      expect(sessions.first.first.weightUnitObj?.name, 'kg');
+    });
+
+    test('leaves out the current run of the routine, not its earlier one', () async {
+      final start = DateTime(2026, 11, 29);
+      await repo.addLocalDrift(
+        makeLog(sessionId: 'earlier-run', routineId: 4, date: DateTime(2026, 7, 17, 18)),
+      );
+      await repo.addLocalDrift(
+        makeLog(sessionId: 'other-routine', routineId: 2, date: DateTime(2026, 11, 22, 18)),
+      );
+      await repo.addLocalDrift(
+        makeLog(sessionId: 'current-run', routineId: 4, date: DateTime(2026, 11, 29, 9)),
+      );
+      await repo.addLocalDrift(
+        makeLog(sessionId: 'no-routine', routineId: null, date: DateTime(2026, 11, 30, 9)),
+      );
+
+      final sessions = await repo.getSessionsBefore(
+        before: DateTime(2026, 12, 1),
+        excludeRoutineId: 4,
+        excludeSince: start,
+      );
+
+      expect(sessions.map((s) => s.first.sessionId), [
+        'no-routine',
+        'other-routine',
+        'earlier-run',
+      ]);
+    });
+
+    test('returns at most the given number of sessions', () async {
+      for (var day = 1; day <= 5; day++) {
+        await repo.addLocalDrift(makeLog(sessionId: 's$day', date: DateTime.utc(2026, 11, day)));
+      }
+
+      final sessions = await repo.getSessionsBefore(before: DateTime.utc(2026, 12), limit: 2);
+
+      expect(sessions.map((s) => s.first.sessionId), ['s5', 's4']);
     });
   });
 }

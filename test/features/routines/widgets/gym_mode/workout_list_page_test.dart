@@ -22,10 +22,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 import 'package:wger/core/shared_preferences.dart';
 import 'package:wger/features/exercises/models/translation.dart';
+import 'package:wger/features/exercises/providers/exercise_repository.dart';
+import 'package:wger/features/exercises/providers/exercises_notifier.dart';
 import 'package:wger/features/routines/models/log.dart';
 import 'package:wger/features/routines/models/overload_option.dart';
 import 'package:wger/features/routines/models/page_progress.dart';
@@ -37,10 +41,22 @@ import 'package:wger/features/routines/widgets/gym_mode/workout_list_page.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 import 'package:wger/l10n/localizations_delegates.dart';
 
+import '../../../../../test_data/exercises.dart';
 import '../../../../../test_data/routines.dart' as testdata;
 import 'workout_list_page_test.mocks.dart';
 
-@GenerateMocks([WorkoutLogRepository])
+/// Captures what a tapped link would open, without opening anything
+class _FakeUrlLauncher extends Fake with MockPlatformInterfaceMixin implements UrlLauncherPlatform {
+  String? launchedUrl;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launchedUrl = url;
+    return true;
+  }
+}
+
+@GenerateMocks([WorkoutLogRepository, ExerciseRepository])
 void main() {
   late ProviderContainer container;
   late MockWorkoutLogRepository logRepo;
@@ -54,6 +70,20 @@ void main() {
     added = [];
     logRepo = MockWorkoutLogRepository();
     when(logRepo.getLatestLogByExercise(any)).thenAnswer((_) async => null);
+    // Not the first session of the day since its routine started, no
+    // programme switch
+    when(
+      logRepo.hasLogsForSlotEntries(
+        any,
+        any,
+        since: anyNamed('since'),
+        before: anyNamed('before'),
+      ),
+    ).thenAnswer((_) async => true);
+    final exerciseRepo = MockExerciseRepository();
+    when(
+      exerciseRepo.watchAllDrift(),
+    ).thenAnswer((_) => Stream.value(ExerciseState(getTestExercises())));
     when(
       logRepo.getDistinctWeightsByExercise(any, weightUnitId: anyNamed('weightUnitId')),
     ).thenAnswer((_) async => []);
@@ -61,7 +91,13 @@ void main() {
       added.add((invocation.positionalArguments[0] as Log)..id = 'log-${added.length + 1}');
     });
     // Last time: two sets of 3 at 100 kg for the first exercise, nothing else
-    when(logRepo.getLastSessionLogsByExercise(any, before: anyNamed('before'))).thenAnswer(
+    when(
+      logRepo.getLastSessionLogsByExercise(
+        any,
+        before: anyNamed('before'),
+        routineId: anyNamed('routineId'),
+      ),
+    ).thenAnswer(
       (invocation) async => invocation.positionalArguments[0] == 1
           ? [
               for (var i = 0; i < 2; i++)
@@ -72,7 +108,10 @@ void main() {
     );
 
     container = ProviderContainer.test(
-      overrides: [workoutLogRepositoryProvider.overrideWithValue(logRepo)],
+      overrides: [
+        workoutLogRepositoryProvider.overrideWithValue(logRepo),
+        exerciseRepositoryProvider.overrideWithValue(exerciseRepo),
+      ],
     );
 
     // The shared fixture uses one slot entry for everything, give the second
@@ -366,6 +405,10 @@ void main() {
       tester,
     ) async {
       setDescription(0, '<p>Keep the back flat</p>');
+      // Only the entry's comment, the slot comments have their own test
+      for (final slot in container.read(gymStateProvider).dayDataGym.slots) {
+        slot.comment = '';
+      }
       for (final page in container.read(gymStateProvider).logPagesBySlotEntry.first) {
         page.setConfigData!.comment = 'Slow negatives, see https://example.com/curl';
       }
@@ -388,6 +431,44 @@ void main() {
         ),
       );
       expect(find.byKey(ValueKey('exercise-comment-${slotEntryOf(1)}')), findsNothing);
+    });
+
+    testWidgets('shows the slot comment below the exercise, its link opens', (tester) async {
+      const url = 'https://www.youtube.com/watch?v=htDXu61MPio';
+      final gymState = container.read(gymStateProvider);
+      gymState.routine.dayDataGym
+              .firstWhere((d) => d.day?.id == gymState.dayId && d.iteration == gymState.iteration)
+              .slots
+              .firstWhere(
+                (slot) => slot.setConfigs.any((c) => c.slotEntryId == slotEntryOf(0)),
+              )
+              .comment =
+          'Warm up: 4 Sets - $url';
+      final launcher = _FakeUrlLauncher();
+      final original = UrlLauncherPlatform.instance;
+      UrlLauncherPlatform.instance = launcher;
+      addTearDown(() => UrlLauncherPlatform.instance = original);
+      await pumpList(tester);
+
+      final comment = find.byKey(ValueKey('exercise-comment-${slotEntryOf(0)}'));
+      expect(
+        find.descendant(
+          of: comment,
+          matching: find.textContaining('Warm up: 4 Sets', findRichText: true),
+        ),
+        findsOneWidget,
+      );
+      // Each exercise its own slot's comment
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('exercise-comment-${slotEntryOf(1)}')),
+          matching: find.text('Side rises'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tapOnText(find.textRange.ofSubstring(url));
+      expect(launcher.launchedUrl, url);
     });
 
     testWidgets('shows the comment of the routine above the first exercise', (tester) async {
@@ -773,6 +854,62 @@ void main() {
       expect(field('pending:$slotEntryId:0', 'reps'), findsNothing);
       verifyNever(logRepo.deleteLocalDrift(any));
     });
+  });
+
+  testWidgets('after a programme switch, pre-fills the sets that beat the muscle groups', (
+    tester,
+  ) async {
+    // First session of the day since the routine started; before it, the
+    // first exercise was done with 3 × 3 at 105 kg (Glutes and Biceps 945)
+    when(
+      logRepo.hasLogsForSlotEntries(
+        any,
+        any,
+        since: anyNamed('since'),
+        before: anyNamed('before'),
+      ),
+    ).thenAnswer((_) async => false);
+    final previous = DateTime.utc(2024, 10, 30, 17);
+    when(
+      logRepo.getSessionsBefore(
+        before: anyNamed('before'),
+        excludeRoutineId: anyNamed('excludeRoutineId'),
+        excludeSince: anyNamed('excludeSince'),
+      ),
+    ).thenAnswer(
+      // Later than the suggestions of the exercises, as from the database:
+      // the smallest step must not be chosen in the meantime
+      (_) => Future.delayed(
+        const Duration(milliseconds: 250),
+        () => [
+          [
+            for (var i = 0; i < 3; i++)
+              Log(exerciseId: 1, repetitions: 3, weight: 105, sessionId: 'before', date: previous)
+                ..repetitionsUnitId = 1,
+          ],
+        ],
+      ),
+    );
+    when(
+      logRepo.getDistinctWeightsByExercise(1, weightUnitId: anyNamed('weightUnitId')),
+    ).thenAnswer((_) async => [100, 102.5, 105, 107.5, 110]);
+
+    await pumpList(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    final [first, second, third] = firstExerciseRows;
+
+    expect(find.byKey(const ValueKey('programme-switch')), findsOneWidget);
+    expect(find.text('Programme switch'), findsOneWidget);
+    // 3 × 3 at 105 is only as much, 107.5 on every set beats it
+    for (final row in [first, second, third]) {
+      expect((textOf(tester, row, 'weight'), textOf(tester, row, 'reps')), ('107.5', '3'));
+    }
+    final chip = tester.widget<ChoiceChip>(
+      find.byKey(ValueKey('overload-chip-${_slotEntry(container)}-0')),
+    );
+    expect((chip.label as Text).data, 'Muscle groups');
+    expect(chip.selected, isTrue);
   });
 }
 

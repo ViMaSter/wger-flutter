@@ -29,6 +29,7 @@ import 'package:logging/logging.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_reminder.dart';
+import 'package:wger/features/routines/notifications/workout_rest_warning.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
 const WORKOUT_NOTIFICATION_ACTION_LOG_SET = 'log_set';
@@ -79,6 +80,13 @@ abstract class WorkoutNotificationService {
 
   Future<void> scheduleRestAlarm(RestAlarm alarm, WorkoutNotificationLabels labels);
 
+  /// Schedules [warning], replacing an earlier one. Separate from the rest
+  /// notification, so it is also kept with gym mode on screen.
+  Future<void> scheduleRestWarning(RestWarning warning, WorkoutNotificationLabels labels);
+
+  /// Removes a pending or shown rest warning
+  Future<void> cancelRestWarning();
+
   Future<void> showControls(WorkoutControls controls, WorkoutNotificationLabels labels);
 
   /// Tells the user that an action was not carried out and the app is needed
@@ -127,6 +135,12 @@ class NoopWorkoutNotificationService implements WorkoutNotificationService {
   Future<void> scheduleRestAlarm(RestAlarm alarm, WorkoutNotificationLabels labels) async {}
 
   @override
+  Future<void> scheduleRestWarning(RestWarning warning, WorkoutNotificationLabels labels) async {}
+
+  @override
+  Future<void> cancelRestWarning() async {}
+
+  @override
   Future<void> showControls(WorkoutControls controls, WorkoutNotificationLabels labels) async {}
 
   @override
@@ -155,9 +169,13 @@ class NoopWorkoutNotificationService implements WorkoutNotificationService {
 class LocalWorkoutNotificationService implements WorkoutNotificationService {
   static const _notificationId = 1;
   static const _reminderId = 2;
+  static const _restWarningId = 3;
   static const _controlsChannelId = 'workout_controls';
   static const _reminderChannelId = 'workout_reminder';
-  static const _alarmChannelId = 'rest_alarm';
+  // Plays on the alarm stream, so it sounds with the ringer on vibrate or
+  // silent. Android fixes a channel's sound when creating it, hence the new id.
+  static const _alarmChannelId = 'rest_alarm_v2';
+  static const _legacyAlarmChannelId = 'rest_alarm';
   static const _restEndCategory = 'workout_rest_end';
   static const _restEndNoLogCategory = 'workout_rest_end_no_log';
   static const _actionTasksChannel = MethodChannel('de.wger.flutter/notification_actions');
@@ -240,7 +258,16 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
             }
           },
         )
-        .then((_) {});
+        .then((_) => _deleteLegacyAlarmChannel());
+  }
+
+  /// The old alarm channel used the notification stream, muted with the ringer
+  Future<void> _deleteLegacyAlarmChannel() async {
+    try {
+      await _android?.deleteNotificationChannel(channelId: _legacyAlarmChannelId);
+    } catch (e) {
+      _logger.warning('Could not delete the old rest alarm channel: $e');
+    }
   }
 
   Future<void> _ensureInitialized(WorkoutNotificationLabels labels) =>
@@ -287,6 +314,9 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
         android: AndroidNotificationDetails(
           alarm.silent ? _controlsChannelId : _alarmChannelId,
           alarm.silent ? labels.controlsChannel : labels.alarmChannel,
+          audioAttributesUsage: alarm.silent
+              ? AudioAttributesUsage.notification
+              : AudioAttributesUsage.alarm,
           importance: alarm.silent ? Importance.low : Importance.high,
           priority: alarm.silent ? Priority.low : Priority.high,
           // A silent one stands in for the controls, so it stays like them
@@ -398,12 +428,56 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
         android: AndroidNotificationDetails(
           _alarmChannelId,
           labels.alarmChannel,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
           importance: Importance.high,
           priority: Priority.high,
         ),
         iOS: const DarwinNotificationDetails(),
       ),
     );
+  }
+
+  @override
+  Future<void> scheduleRestWarning(RestWarning warning, WorkoutNotificationLabels labels) async {
+    await _ensureInitialized(labels);
+    final exact = await canScheduleExactAlarms();
+    await _plugin.zonedSchedule(
+      id: _restWarningId,
+      scheduledDate: tz.TZDateTime.from(warning.at, tz.UTC),
+      title: warning.title,
+      body: warning.body,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      notificationDetails: NotificationDetails(
+        // The channel of the rest alarm, so both sound the same
+        android: AndroidNotificationDetails(
+          _alarmChannelId,
+          labels.alarmChannel,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+          importance: Importance.high,
+          priority: Priority.high,
+          category: AndroidNotificationCategory.alarm,
+          visibility: NotificationVisibility.public,
+          // The rest alarm takes over once the rest is over
+          timeoutAfter: REST_WARNING_BEFORE.inMilliseconds,
+        ),
+        // With the app in front the countdown is on screen, only the sound
+        // is wanted. In the background it shows as usual.
+        iOS: const DarwinNotificationDetails(
+          presentSound: true,
+          presentAlert: false,
+          presentBanner: false,
+          presentList: false,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> cancelRestWarning() async {
+    await _initialized;
+    await _plugin.cancel(id: _restWarningId);
   }
 
   @override

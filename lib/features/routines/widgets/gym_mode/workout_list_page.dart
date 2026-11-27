@@ -37,6 +37,7 @@ import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/weight_profiles_notifier.dart';
 import 'package:wger/features/routines/widgets/gym_mode/linkified_comment.dart';
 import 'package:wger/features/routines/widgets/gym_mode/navigation.dart';
+import 'package:wger/features/routines/widgets/gym_mode/programme_switch_card.dart';
 import 'package:wger/features/routines/widgets/gym_mode/progressive_overload_card.dart';
 import 'package:wger/features/routines/widgets/gym_mode/weight_profile_sheet.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
@@ -141,11 +142,13 @@ class _WorkoutListPageState extends ConsumerState<WorkoutListPage> {
 
     // The overload options add a row of chips to their block once loaded,
     // which would push the row down again after it was scrolled to
+    final musclePlan = watchMuscleOverloadPlan(ref);
     final settled =
         !progressiveOverload ||
-        blocks.every(
-          (block) => !watchOverloadSuggestions(ref, block.first.setConfigData!).isLoading,
-        );
+        (!musclePlan.isLoading &&
+            blocks.every(
+              (block) => !watchOverloadSuggestions(ref, block.first.setConfigData!).isLoading,
+            ));
     if (settled) {
       _chooseResumeRow(ref.read(gymStateProvider), blocks);
     }
@@ -168,6 +171,8 @@ class _WorkoutListPageState extends ConsumerState<WorkoutListPage> {
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                     child: LinkifiedComment(routineComment),
                   ),
+                if (musclePlan.value case final plan?)
+                  ProgrammeSwitchCard(plan, key: const ValueKey('programme-switch')),
                 for (final logPages in blocks)
                   ExerciseSetsBlock(
                     logPages,
@@ -326,7 +331,10 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
     final suggestions = gymState.progressiveOverload
         ? watchOverloadSuggestions(ref, _config).value
         : null;
-    final options = suggestions?.options ?? const <OverloadOption>[];
+    // After a programme switch the sets for the muscle groups come first
+    final musclePlan = gymState.progressiveOverload ? watchMuscleOverloadPlan(ref) : null;
+    final muscleOption = musclePlan?.value?.options[slotEntryId];
+    final options = [?muscleOption, ...?suggestions?.options];
     final lastSets = [
       for (final log in suggestions?.lastSession ?? const [])
         OverloadSet(weight: log.weight, repetitions: log.repetitions!),
@@ -334,12 +342,16 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
     final unit =
         suggestions?.lastSession.lastOrNull?.weightUnitObj?.name ?? _config.weightUnit?.name;
 
-    // Pre-select the smallest step beyond last time, once
-    final smallest = smallestOverloadOption(options);
-    if (smallest != null && !gymState.overloadDecided.contains(slotEntryId)) {
+    // Pre-select the sets for the muscle groups after a programme switch,
+    // else the smallest step beyond last time, once. Not before it is known
+    // whether there was a switch.
+    final preselect = muscleOption ?? smallestOverloadOption(suggestions?.options ?? const []);
+    if (preselect != null &&
+        musclePlan?.isLoading != true &&
+        !gymState.overloadDecided.contains(slotEntryId)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          notifier.applyDefaultOverload(slotEntryId, smallest);
+          notifier.applyDefaultOverload(slotEntryId, preselect);
         }
       });
     }
@@ -375,7 +387,11 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
 
     // Once a set is logged or a weight changed, the sets still to do shrink to
     // what is needed to still beat last time, or fall short (fatigue)
-    final baselineVolume = suggestions?.baselineVolume ?? 0;
+    // With the sets for the muscle groups, what they add up to is the bar:
+    // the remaining sets then still make up the muscle groups' volume
+    final baselineVolume = selected?.type == OverloadType.muscleGroup
+        ? selected!.volume - 1e-6
+        : suggestions?.baselineVolume ?? 0;
     final adapts =
         selected != null &&
         gymState.progressiveOverload &&
@@ -517,7 +533,20 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
     final optionExtraTotal = selected == null ? 0 : selected.sets.length - plannedCount;
     final extrasFromOption = optionExtraTotal >= extraLogged.length;
 
-    final comments = _config.comment.trim();
+    // The slot's comment (where the routine editor puts it) and the entry's,
+    // as on the log page
+    final dayData = gymState.routine.dayDataGym.firstWhereOrNull(
+      (data) => data.day?.id == gymState.dayId && data.iteration == gymState.iteration,
+    );
+    final slotComment = dayData?.slots
+        .firstWhereOrNull(
+          (slot) => slot.setConfigs.any((config) => config.slotEntryId == slotEntryId),
+        )
+        ?.comment;
+    final comments = [
+      slotComment?.trim(),
+      _config.comment.trim(),
+    ].whereType<String>().where((comment) => comment.isNotEmpty).toSet().join('\n');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -749,6 +778,7 @@ class _ExerciseSetsBlockState extends ConsumerState<ExerciseSetsBlock> {
       OverloadType.moreReps => i18n.progressiveOverloadMoreRepsShort,
       OverloadType.moreSets => i18n.progressiveOverloadMoreSetsShort,
       OverloadType.asBefore => i18n.progressiveOverloadAsBefore,
+      OverloadType.muscleGroup => i18n.progressiveOverloadMuscleGroupShort,
       OverloadType.heavier => [
         localizedNumberFormat(context).format(option.sets.first.weight),
         ?unit,

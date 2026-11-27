@@ -38,6 +38,10 @@ enum OverloadType {
   /// couldn't, see `fillWithLowerWeight`
   fill,
 
+  /// After a programme switch: the sets that make every muscle group beat the
+  /// most similar session before the switch, see `planMuscleOverload`
+  muscleGroup,
+
   /// The previous session as it was, no overload. Not one of the suggestions,
   /// offered next to them in the list layout.
   asBefore,

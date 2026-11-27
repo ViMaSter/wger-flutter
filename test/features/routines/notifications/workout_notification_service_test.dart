@@ -28,6 +28,7 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
 import 'package:wger/features/routines/notifications/workout_reminder.dart';
+import 'package:wger/features/routines/notifications/workout_rest_warning.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -182,7 +183,7 @@ void main() {
     final service = LocalWorkoutNotificationService();
 
     await service.scheduleRestAlarm(alarm(), labels);
-    expect(scheduled()['channelId'], 'rest_alarm');
+    expect(scheduled()['channelId'], 'rest_alarm_v2');
     expect(scheduled()['playSound'], isTrue);
 
     calls.clear();
@@ -201,6 +202,37 @@ void main() {
     expect(scheduled()['enableVibration'], isFalse);
     expect(scheduled()['ongoing'], isTrue);
     expect(scheduled()['autoCancel'], isFalse);
+  });
+
+  group('Sounds with the ringer on vibrate or silent', () {
+    test('The rest alarm plays on the alarm stream', () async {
+      await LocalWorkoutNotificationService().scheduleRestAlarm(alarm(), labels);
+
+      expect(scheduled()['audioAttributesUsage'], AudioAttributesUsage.alarm.value);
+    });
+
+    test('So does the warning before the end of the rest', () async {
+      await LocalWorkoutNotificationService().scheduleRestWarning(
+        RestWarning(
+          at: DateTime.now().add(const Duration(minutes: 2)),
+          title: 'Rest ends in 30 s',
+          body: 'Next: Bench press',
+        ),
+        labels,
+      );
+
+      expect(scheduled()['channelId'], 'rest_alarm_v2');
+      expect(scheduled()['audioAttributesUsage'], AudioAttributesUsage.alarm.value);
+    });
+
+    test('Removes the old channel on the notification stream', () async {
+      await LocalWorkoutNotificationService().initialize(labels);
+
+      expect(
+        calls.where((c) => c.method == 'deleteNotificationChannel').map((c) => c.arguments),
+        ['rest_alarm'],
+      );
+    });
   });
 
   test('The alarm says next to the app name that the rest is over', () async {

@@ -62,12 +62,13 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i2.WorkoutLogReposit
   _i3.Future<List<_i4.Log>> getLastSessionLogsByExercise(
     int? exerciseId, {
     required DateTime? before,
+    int? routineId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #getLastSessionLogsByExercise,
               [exerciseId],
-              {#before: before},
+              {#before: before, #routineId: routineId},
             ),
             returnValue: _i3.Future<List<_i4.Log>>.value(<_i4.Log>[]),
           )
@@ -87,6 +88,43 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i2.WorkoutLogReposit
             returnValue: _i3.Future<List<num>>.value(<num>[]),
           )
           as _i3.Future<List<num>>);
+
+  @override
+  _i3.Future<bool> hasLogsForSlotEntries(
+    int? routineId,
+    List<int>? slotEntryIds, {
+    required DateTime? since,
+    required DateTime? before,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #hasLogsForSlotEntries,
+              [routineId, slotEntryIds],
+              {#since: since, #before: before},
+            ),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<List<List<_i4.Log>>> getSessionsBefore({
+    required DateTime? before,
+    int? excludeRoutineId,
+    DateTime? excludeSince,
+    int? limit = 14,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getSessionsBefore, [], {
+              #before: before,
+              #excludeRoutineId: excludeRoutineId,
+              #excludeSince: excludeSince,
+              #limit: limit,
+            }),
+            returnValue: _i3.Future<List<List<_i4.Log>>>.value(
+              <List<_i4.Log>>[],
+            ),
+          )
+          as _i3.Future<List<List<_i4.Log>>>);
 
   @override
   _i3.Future<List<_i4.Log>> resubmitMissing(List<_i4.Log>? logs) =>

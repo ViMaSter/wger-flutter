@@ -30,7 +30,8 @@ import 'package:wger/features/routines/models/slot_entry.dart' as _i6;
 import 'package:wger/features/routines/models/weight_unit.dart' as _i20;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart' as _i32;
 import 'package:wger/features/routines/notifications/workout_notification_service.dart' as _i31;
-import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i33;
+import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i34;
+import 'package:wger/features/routines/notifications/workout_rest_warning.dart' as _i33;
 import 'package:wger/features/routines/providers/routines_repository.dart' as _i19;
 import 'package:wger/features/routines/providers/workout_logs_repository.dart' as _i27;
 import 'package:wger/features/routines/providers/workout_session_repository.dart' as _i9;
@@ -568,12 +569,13 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i27.WorkoutLogReposi
   _i10.Future<List<_i28.Log>> getLastSessionLogsByExercise(
     int? exerciseId, {
     required DateTime? before,
+    int? routineId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #getLastSessionLogsByExercise,
               [exerciseId],
-              {#before: before},
+              {#before: before, #routineId: routineId},
             ),
             returnValue: _i10.Future<List<_i28.Log>>.value(<_i28.Log>[]),
           )
@@ -593,6 +595,43 @@ class MockWorkoutLogRepository extends _i1.Mock implements _i27.WorkoutLogReposi
             returnValue: _i10.Future<List<num>>.value(<num>[]),
           )
           as _i10.Future<List<num>>);
+
+  @override
+  _i10.Future<bool> hasLogsForSlotEntries(
+    int? routineId,
+    List<int>? slotEntryIds, {
+    required DateTime? since,
+    required DateTime? before,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #hasLogsForSlotEntries,
+              [routineId, slotEntryIds],
+              {#since: since, #before: before},
+            ),
+            returnValue: _i10.Future<bool>.value(false),
+          )
+          as _i10.Future<bool>);
+
+  @override
+  _i10.Future<List<List<_i28.Log>>> getSessionsBefore({
+    required DateTime? before,
+    int? excludeRoutineId,
+    DateTime? excludeSince,
+    int? limit = 14,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getSessionsBefore, [], {
+              #before: before,
+              #excludeRoutineId: excludeRoutineId,
+              #excludeSince: excludeSince,
+              #limit: limit,
+            }),
+            returnValue: _i10.Future<List<List<_i28.Log>>>.value(
+              <List<_i28.Log>>[],
+            ),
+          )
+          as _i10.Future<List<List<_i28.Log>>>);
 
   @override
   _i10.Future<List<_i28.Log>> resubmitMissing(List<_i28.Log>? logs) =>
@@ -755,6 +794,27 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i31.WorkoutNot
           as _i10.Future<void>);
 
   @override
+  _i10.Future<void> scheduleRestWarning(
+    _i33.RestWarning? warning,
+    _i32.WorkoutNotificationLabels? labels,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#scheduleRestWarning, [warning, labels]),
+            returnValue: _i10.Future<void>.value(),
+            returnValueForMissingStub: _i10.Future<void>.value(),
+          )
+          as _i10.Future<void>);
+
+  @override
+  _i10.Future<void> cancelRestWarning() =>
+      (super.noSuchMethod(
+            Invocation.method(#cancelRestWarning, []),
+            returnValue: _i10.Future<void>.value(),
+            returnValueForMissingStub: _i10.Future<void>.value(),
+          )
+          as _i10.Future<void>);
+
+  @override
   _i10.Future<void> showControls(
     _i32.WorkoutControls? controls,
     _i32.WorkoutNotificationLabels? labels,
@@ -785,7 +845,7 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i31.WorkoutNot
           as _i10.Future<void>);
 
   @override
-  _i10.Future<void> scheduleReminder(_i33.MissingEntriesReminder? reminder) =>
+  _i10.Future<void> scheduleReminder(_i34.MissingEntriesReminder? reminder) =>
       (super.noSuchMethod(
             Invocation.method(#scheduleReminder, [reminder]),
             returnValue: _i10.Future<void>.value(),

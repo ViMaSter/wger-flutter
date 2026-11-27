@@ -15,6 +15,7 @@ _WeightProfile _$WeightProfileFromJson(Map<String, dynamic> json) => _WeightProf
   max: json['max'] as num?,
   plates: (json['plates'] as List<dynamic>?)?.map((e) => e as num).toList() ?? const [],
   fixed: (json['fixed'] as List<dynamic>?)?.map((e) => e as num).toList() ?? const [],
+  pair: json['pair'] as bool? ?? false,
   bonus: (json['bonus'] as List<dynamic>?)?.map((e) => e as num).toList() ?? const [],
 );
 
@@ -27,6 +28,7 @@ Map<String, dynamic> _$WeightProfileToJson(_WeightProfile instance) => <String, 
   'max': instance.max,
   'plates': instance.plates,
   'fixed': instance.fixed,
+  'pair': instance.pair,
   'bonus': instance.bonus,
 };
 

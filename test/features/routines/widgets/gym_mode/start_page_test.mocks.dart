@@ -9,7 +9,8 @@ import 'dart:async' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:wger/features/routines/notifications/workout_notification_content.dart' as _i4;
 import 'package:wger/features/routines/notifications/workout_notification_service.dart' as _i2;
-import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i5;
+import 'package:wger/features/routines/notifications/workout_reminder.dart' as _i6;
+import 'package:wger/features/routines/notifications/workout_rest_warning.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -99,6 +100,27 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i2.WorkoutNoti
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> scheduleRestWarning(
+    _i5.RestWarning? warning,
+    _i4.WorkoutNotificationLabels? labels,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#scheduleRestWarning, [warning, labels]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> cancelRestWarning() =>
+      (super.noSuchMethod(
+            Invocation.method(#cancelRestWarning, []),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> showControls(
     _i4.WorkoutControls? controls,
     _i4.WorkoutNotificationLabels? labels,
@@ -129,7 +151,7 @@ class MockWorkoutNotificationService extends _i1.Mock implements _i2.WorkoutNoti
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> scheduleReminder(_i5.MissingEntriesReminder? reminder) =>
+  _i3.Future<void> scheduleReminder(_i6.MissingEntriesReminder? reminder) =>
       (super.noSuchMethod(
             Invocation.method(#scheduleReminder, [reminder]),
             returnValue: _i3.Future<void>.value(),

@@ -138,5 +138,20 @@ void main() {
       expect(loadoutFor(rack, 1.8754)!.fixed, 1.875);
       expect(loadoutFor(rack, 1.87), isNull);
     });
+
+    test('fixed: a pair matches the logged total and says so', () {
+      const rack = WeightProfile(
+        id: 'r',
+        name: 'r',
+        kind: WeightProfileKind.fixed,
+        fixed: [20, 30],
+        pair: true,
+      );
+
+      final loadout = loadoutFor(rack, 30)!;
+      expect(loadout.fixed, 30);
+      expect(loadout.pair, isTrue);
+      expect(loadoutFor(rack, 15), isNull);
+    });
   });
 }

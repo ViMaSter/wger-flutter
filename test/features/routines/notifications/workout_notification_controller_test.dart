@@ -31,6 +31,7 @@ import 'package:wger/features/routines/notifications/workout_notification_conten
 import 'package:wger/features/routines/notifications/workout_notification_controller.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
 import 'package:wger/features/routines/notifications/workout_reminder.dart';
+import 'package:wger/features/routines/notifications/workout_rest_warning.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_notifier.dart';
@@ -62,6 +63,8 @@ void main() {
     when(service.initialize(any)).thenAnswer((_) async {});
     when(service.scheduleReminder(any)).thenAnswer((_) async {});
     when(service.cancelReminder()).thenAnswer((_) async {});
+    when(service.scheduleRestWarning(any, any)).thenAnswer((_) async {});
+    when(service.cancelRestWarning()).thenAnswer((_) async {});
     taps = StreamController<String?>.broadcast();
     addTearDown(taps.close);
     when(service.taps).thenAnswer((_) => taps.stream);
@@ -184,6 +187,49 @@ void main() {
     verifyNever(service.scheduleRestAlarm(any, any));
     verifyNever(service.showControls(any, any));
     expect(gymState.state.isInitialized, isTrue);
+  });
+
+  group('the warning before the end of the rest', () {
+    test('is scheduled with gym mode on screen too, 30 seconds before the end', () async {
+      await startRest();
+      final warning =
+          verify(service.scheduleRestWarning(captureAny, any)).captured.single as RestWarning;
+      expect(warning.at.isAtSameMomentAs(now.add(const Duration(seconds: 90))), isTrue);
+      clearInteractions(service);
+
+      // Unlike the rest alarm it stays, the platform sounds it in front too
+      await withClock(Clock.fixed(now), () async {
+        toForeground();
+        await settle();
+      });
+
+      verify(service.cancelAll()).called(1);
+      verifyNever(service.cancelRestWarning());
+      verifyNever(service.scheduleRestWarning(any, any));
+    });
+
+    test('is removed when the rest is skipped', () async {
+      await startRest();
+      clearInteractions(service);
+
+      await withClock(Clock.fixed(now), () async {
+        gymState.skipRest();
+        await settle();
+      });
+
+      verify(service.cancelRestWarning()).called(1);
+      verifyNever(service.scheduleRestWarning(any, any));
+    });
+
+    test('is removed when gym mode is left', () async {
+      await startRest();
+      clearInteractions(service);
+
+      container.read(gymModeVisibleProvider.notifier).set(false);
+      await settle();
+
+      verify(service.cancelRestWarning()).called(1);
+    });
   });
 
   test('Ending gym mode removes everything', () async {

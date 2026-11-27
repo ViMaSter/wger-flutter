@@ -1690,6 +1690,25 @@ void main() {
       expect(checked.firstWhere((log) => log.id == 'log-1').repetitions, 3);
     });
 
+    // An expired session keeps the gym state and the local data; after logging
+    // in again the workout is opened anew in the same process
+    test('Re-entering the workout checks the sets logged meanwhile, once each', () async {
+      final container = newContainer();
+      final gymNotifier = await opened(container);
+      final key = logKey(gymNotifier, 0);
+      await gymNotifier.logSetAt(key, repetitions: 3, weight: 100);
+      await pumpEventQueue();
+      clearInteractions(logRepo);
+
+      await opened(container);
+      await pumpEventQueue();
+
+      expect(gymNotifier.state.progressOf(key).done, isTrue);
+      final checked = verify(logRepo.resubmitMissing(captureAny)).captured.single as List<Log>;
+      expect(checked.map((log) => log.id), ['log-1']);
+      verifyNever(logRepo.addLocalDrift(any, dayId: anyNamed('dayId')));
+    });
+
     test('Nothing is sent again while the server can not confirm', () async {
       final gymNotifier = await opened(newContainer());
       await gymNotifier.logSetAt(logKey(gymNotifier, 0), repetitions: 3, weight: 100);

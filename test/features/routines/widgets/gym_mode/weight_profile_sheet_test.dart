@@ -107,6 +107,56 @@ void main() {
     expect(find.text('Per side: 5 + 1.25'), findsOneWidget);
   });
 
+  group('a pair of dumbbells', () {
+    Future<void> assignRack({required bool pair}) async {
+      final notifier = container.read(weightProfilesProvider.notifier);
+      await container.read(weightProfilesProvider.future);
+      await notifier.upsertProfile(
+        WeightProfile(
+          id: 'rack',
+          name: 'Dumbbells',
+          kind: WeightProfileKind.fixed,
+          fixed: const [20, 25, 30],
+          pair: pair,
+        ),
+      );
+      await notifier.assign(7, 'rack');
+    }
+
+    testWidgets('splits the logged total over both hands', (tester) async {
+      await tester.runAsync(() => assignRack(pair: true));
+      await pumpSheet(tester, weight: 25);
+
+      expect(find.text('Take 12.5 in each hand'), findsOneWidget);
+      expect(find.text('Take 25'), findsNothing);
+    });
+
+    testWidgets('a single weight is taken as logged', (tester) async {
+      await tester.runAsync(() => assignRack(pair: false));
+      await pumpSheet(tester, weight: 25);
+
+      expect(find.text('Take 25'), findsOneWidget);
+    });
+
+    testWidgets('the editor switches a rack to a pair', (tester) async {
+      await tester.runAsync(() => assignRack(pair: false));
+      await pumpSheet(tester, weight: 30);
+
+      await tester.tap(find.byKey(const ValueKey('weight-profile-edit')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('weight-profile-pair')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('weight-profile-save')));
+      // The preferences write completes in real time
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      final state = await tester.runAsync(() => container.read(weightProfilesProvider.future));
+      expect(state!.profileFor(7)!.pair, isTrue);
+      expect(find.text('Take 15 in each hand'), findsOneWidget);
+    });
+  });
+
   testWidgets('creates a stack with repeated add-ons and assigns it', (tester) async {
     await pumpSheet(tester, weight: 40);
     expect(find.byKey(const ValueKey('weight-profile-none')), findsOneWidget);

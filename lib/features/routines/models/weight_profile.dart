@@ -56,8 +56,13 @@ sealed class WeightProfile with _$WeightProfile {
     /// The plate sizes of [WeightProfileKind.plates], each usable many times
     @Default([]) List<num> plates,
 
-    /// The weights of [WeightProfileKind.fixed]
+    /// The weights of [WeightProfileKind.fixed]. For a [pair] each is the
+    /// weight of both together, as it is logged.
     @Default([]) List<num> fixed,
+
+    /// Whether [WeightProfileKind.fixed] weights come as a pair, one in each
+    /// hand (e.g. dumbbells)
+    @Default(false) bool pair,
 
     /// Add-ons of a [WeightProfileKind.linear] stack, each usable once. Repeat
     /// an entry for several of the same size, e.g. [0.625, 0.625].
@@ -95,8 +100,12 @@ class Loadout with _$Loadout {
   /// The add-ons on top of [pin]
   final List<num> addOns;
 
-  /// The weight to pick for [WeightProfileKind.fixed]
+  /// The weight to pick for [WeightProfileKind.fixed], of both together for a
+  /// [pair]
   final num? fixed;
+
+  /// Whether [fixed] is split over a pair, one in each hand
+  final bool pair;
 
   const Loadout({
     required this.kind,
@@ -105,6 +114,7 @@ class Loadout with _$Loadout {
     this.pin,
     this.addOns = const [],
     this.fixed,
+    this.pair = false,
   });
 
   num get total =>
@@ -201,7 +211,9 @@ Loadout? loadoutFor(WeightProfile profile, num weight) {
   switch (profile.kind) {
     case WeightProfileKind.fixed:
       final match = profile.fixed.where((f) => (_units(f) - target).abs() <= 1).firstOrNull;
-      return match == null ? null : Loadout(kind: WeightProfileKind.fixed, fixed: match);
+      return match == null
+          ? null
+          : Loadout(kind: WeightProfileKind.fixed, fixed: match, pair: profile.pair);
 
     case WeightProfileKind.plates:
       final base = _units(profile.base);

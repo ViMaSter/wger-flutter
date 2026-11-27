@@ -11,8 +11,11 @@ part of 'weight_profiles_notifier.dart';
 /// The [WeightProfile]s of the user's equipment and which exercise uses
 /// which. Used for the progressive overload suggestions.
 ///
-/// Stored on this device only. Without stored profiles yet, the weights of
-/// the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
+/// Stored on this device and, where the server offers it, on the server
+/// ([WeightProfilesRepository]), so a reinstall gets them back: every change
+/// is sent, and the server's version is taken over when logged in and it is
+/// newer than the one last in sync. Without stored profiles yet, the weights
+/// of the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
 /// profile per exercise, that key itself stays as it is.
 
 @ProviderFor(WeightProfilesNotifier)
@@ -21,16 +24,22 @@ final weightProfilesProvider = WeightProfilesNotifierProvider._();
 /// The [WeightProfile]s of the user's equipment and which exercise uses
 /// which. Used for the progressive overload suggestions.
 ///
-/// Stored on this device only. Without stored profiles yet, the weights of
-/// the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
+/// Stored on this device and, where the server offers it, on the server
+/// ([WeightProfilesRepository]), so a reinstall gets them back: every change
+/// is sent, and the server's version is taken over when logged in and it is
+/// newer than the one last in sync. Without stored profiles yet, the weights
+/// of the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
 /// profile per exercise, that key itself stays as it is.
 final class WeightProfilesNotifierProvider
     extends $AsyncNotifierProvider<WeightProfilesNotifier, WeightProfilesState> {
   /// The [WeightProfile]s of the user's equipment and which exercise uses
   /// which. Used for the progressive overload suggestions.
   ///
-  /// Stored on this device only. Without stored profiles yet, the weights of
-  /// the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
+  /// Stored on this device and, where the server offers it, on the server
+  /// ([WeightProfilesRepository]), so a reinstall gets them back: every change
+  /// is sent, and the server's version is taken over when logged in and it is
+  /// newer than the one last in sync. Without stored profiles yet, the weights
+  /// of the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
   /// profile per exercise, that key itself stays as it is.
   WeightProfilesNotifierProvider._()
     : super(
@@ -51,13 +60,16 @@ final class WeightProfilesNotifierProvider
   WeightProfilesNotifier create() => WeightProfilesNotifier();
 }
 
-String _$weightProfilesNotifierHash() => r'a646c001619ce0e6869bf6b4ea04f74910bb7388';
+String _$weightProfilesNotifierHash() => r'a23689a94faa77133ea5bdb851868603c9118276';
 
 /// The [WeightProfile]s of the user's equipment and which exercise uses
 /// which. Used for the progressive overload suggestions.
 ///
-/// Stored on this device only. Without stored profiles yet, the weights of
-/// the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
+/// Stored on this device and, where the server offers it, on the server
+/// ([WeightProfilesRepository]), so a reinstall gets them back: every change
+/// is sent, and the server's version is taken over when logged in and it is
+/// newer than the one last in sync. Without stored profiles yet, the weights
+/// of the older per-exercise list ([PREFS_AVAILABLE_WEIGHTS]) become one fixed
 /// profile per exercise, that key itself stays as it is.
 
 abstract class _$WeightProfilesNotifier extends $AsyncNotifier<WeightProfilesState> {

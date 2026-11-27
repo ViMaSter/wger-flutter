@@ -30,6 +30,7 @@ import 'package:wger/features/routines/models/log.dart';
 import 'package:wger/features/routines/notifications/workout_notification_content.dart';
 import 'package:wger/features/routines/notifications/workout_notification_service.dart';
 import 'package:wger/features/routines/notifications/workout_reminder.dart';
+import 'package:wger/features/routines/notifications/workout_rest_warning.dart';
 import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/providers/gym_state_notifier.dart';
 import 'package:wger/features/routines/providers/workout_logs_notifier.dart';
@@ -69,6 +70,11 @@ class WorkoutNotificationController {
 
   /// Whether [_reminder] may differ from the platform, e.g. after a failure
   bool _reminderUnknown = false;
+
+  RestWarning? _restWarning;
+
+  /// Whether [_restWarning] may differ from the platform
+  bool _restWarningUnknown = false;
 
   /// Earlier logs of the exercise of the set "log set" logs
   ProviderSubscription<AsyncValue<List<Log>>>? _recentLogsSubscription;
@@ -125,6 +131,40 @@ class WorkoutNotificationController {
     _watchRecentLogs(state, build(withControls: true));
 
     _updateReminder(state, i18n, locale.languageCode);
+    _updateRestWarning(state, i18n, locale.languageCode, labels);
+  }
+
+  /// Keeps the warning shortly before the end of the rest in line with
+  /// [state]. Unlike the rest notifications also with gym mode on screen, the
+  /// platform sounds it there too: one cue, whatever state the app is in.
+  void _updateRestWarning(
+    GymModeState state,
+    AppLocalizations i18n,
+    String languageCode,
+    WorkoutNotificationLabels labels,
+  ) {
+    final warning = _ref.read(gymModeVisibleProvider)
+        ? buildRestWarning(state, i18n, now: clock.now(), languageCode: languageCode)
+        : null;
+    if (warning == _restWarning && !_restWarningUnknown) {
+      return;
+    }
+    _restWarning = warning;
+    _restWarningUnknown = false;
+
+    unawaited(
+      _enqueue(() async {
+        try {
+          await (warning == null
+              ? _service.cancelRestWarning()
+              : _service.scheduleRestWarning(warning, labels));
+        } catch (_) {
+          // Unknown what the platform has now, the next update tries again
+          _restWarningUnknown = true;
+          rethrow;
+        }
+      }),
+    );
   }
 
   /// Keeps the reminder of missing entries in line with [state]. Unlike the
@@ -187,6 +227,7 @@ class WorkoutNotificationController {
   void refresh() {
     unawaited(_enqueue(() async => _shown = null));
     _reminderUnknown = true;
+    _restWarningUnknown = true;
     update();
   }
 
