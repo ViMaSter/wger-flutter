@@ -105,4 +105,55 @@ void main() {
       expect(loggedKeyringWarning(), isTrue);
     });
   });
+
+  // The server invalidates the previous refresh token with every rotation. If
+  // the rotated one can't be written, reading the stale one from disk ends the
+  // session at the next refresh.
+  group('a rotated refresh token secure storage refused', () {
+    final keychainLocked = PlatformException(code: 'Unexpected security result code');
+
+    test('is read back instead of the stale one on disk', () async {
+      when(secureStorage.writeRefreshToken(any)).thenThrow(keychainLocked);
+      when(secureStorage.readRefreshToken()).thenAnswer((_) async => 'stale');
+
+      await storage.updateJwt(
+        credential: const JwtCredential(accessToken: 'access2'),
+        refreshToken: 'rotated',
+      );
+
+      expect(await storage.readRefreshToken(), 'rotated');
+      verifyNever(secureStorage.readRefreshToken());
+    });
+
+    test('is persisted on the next read once storage accepts it', () async {
+      when(secureStorage.writeRefreshToken(any)).thenThrow(keychainLocked);
+      await storage.updateJwt(
+        credential: const JwtCredential(accessToken: 'access2'),
+        refreshToken: 'rotated',
+      );
+
+      when(secureStorage.writeRefreshToken(any)).thenAnswer((_) async {});
+      when(secureStorage.readRefreshToken()).thenAnswer((_) async => 'rotated');
+      expect(await storage.readRefreshToken(), 'rotated');
+      verify(secureStorage.writeRefreshToken('rotated')).called(2);
+
+      // Persisted now, so the next read goes to storage again
+      expect(await storage.readRefreshToken(), 'rotated');
+      verify(secureStorage.readRefreshToken()).called(1);
+    });
+
+    test('is dropped when the credentials are cleared', () async {
+      when(secureStorage.writeRefreshToken(any)).thenThrow(keychainLocked);
+      when(secureStorage.deleteRefreshToken()).thenAnswer((_) async {});
+      when(secureStorage.readRefreshToken()).thenAnswer((_) async => null);
+      await storage.updateJwt(
+        credential: const JwtCredential(accessToken: 'access2'),
+        refreshToken: 'rotated',
+      );
+
+      await storage.clearCredentials();
+
+      expect(await storage.readRefreshToken(), isNull);
+    });
+  });
 }

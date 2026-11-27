@@ -85,15 +85,10 @@ class AuthCredentialsStorage {
     }
     await _prefs.setString(PREFS_SERVER_URL, serverUrl);
 
+    // A locked or unavailable keyring must not abort login. The token stays
+    // in memory, so the session works until the app restarts.
     if (refreshToken != null) {
-      try {
-        await _secureStorage.writeRefreshToken(refreshToken);
-      } catch (e, s) {
-        // A locked or unavailable keyring must not abort login. The session
-        // works now, but the refresh token cannot be persisted, so there is no
-        // auto-login after a restart until the keyring becomes available.
-        _logger.warning('Could not persist refresh token, auto-login disabled', e, s);
-      }
+      await _persistRefreshToken(refreshToken);
     }
   }
 
@@ -111,14 +106,7 @@ class AuthCredentialsStorage {
       await _prefs.remove(PREFS_ACCESS_EXPIRES_AT);
     }
     if (refreshToken != null) {
-      try {
-        await _secureStorage.writeRefreshToken(refreshToken);
-      } catch (e, s) {
-        // A locked or unavailable keyring must not abort login. The session
-        // works now, but the refresh token cannot be persisted, so there is no
-        // auto-login after a restart until the keyring becomes available.
-        _logger.warning('Could not persist refresh token, auto-login disabled', e, s);
-      }
+      await _persistRefreshToken(refreshToken);
     }
   }
 
@@ -135,6 +123,7 @@ class AuthCredentialsStorage {
     await _prefs.remove(PREFS_ACCESS_TOKEN);
     await _prefs.remove(PREFS_ACCESS_EXPIRES_AT);
     await _prefs.remove(PREFS_SERVER_URL);
+    _unpersistedRefreshToken = null;
     try {
       await _secureStorage.deleteRefreshToken();
     } catch (e, s) {
@@ -184,7 +173,32 @@ class AuthCredentialsStorage {
   /// Reads the persisted refresh token from secure storage. Returned to
   /// callers raw because the refresh flow needs to send it verbatim to the
   /// `tokens/refresh` endpoint.
-  Future<String?> readRefreshToken() => _secureStorage.readRefreshToken();
+  Future<String?> readRefreshToken() async {
+    final unpersisted = _unpersistedRefreshToken;
+    if (unpersisted == null) {
+      return _secureStorage.readRefreshToken();
+    }
+    // The server already invalidated the token on disk, so the one in memory
+    // is the only valid one. Try again to persist it for the next app start.
+    await _persistRefreshToken(unpersisted);
+    return unpersisted;
+  }
+
+  /// A rotated refresh token secure storage refused to persist (e.g. the
+  /// keychain while the phone is locked between sets). The server invalidated
+  /// the previous one with the rotation, so falling back to the stale token on
+  /// disk would end the session at the next refresh.
+  String? _unpersistedRefreshToken;
+
+  Future<void> _persistRefreshToken(String token) async {
+    try {
+      await _secureStorage.writeRefreshToken(token);
+      _unpersistedRefreshToken = null;
+    } catch (e, s) {
+      _unpersistedRefreshToken = token;
+      _logger.warning('Could not persist refresh token, keeping it in memory', e, s);
+    }
+  }
 }
 
 /// Provider over the singleton storage. Reads [secureTokenStorageProvider]
