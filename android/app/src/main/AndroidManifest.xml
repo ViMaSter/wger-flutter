@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Rest alarms on time; user-granted on Android 14+, inexact without it -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- The rest timer as a Live Update (Android 16+): status bar chip, lock screen buttons -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Health Connect permissions for the imported measurement types. Must

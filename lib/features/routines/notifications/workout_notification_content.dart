@@ -28,6 +28,9 @@ import 'package:wger/features/routines/providers/gym_state.dart';
 import 'package:wger/features/routines/validators.dart';
 import 'package:wger/l10n/generated/app_localizations.dart';
 
+/// The app name the timer notification uses until the platform tells
+const DEFAULT_APP_NAME = 'wger';
+
 /// What "extend rest" adds when the set has no span between minimum and
 /// maximum rest, see [restExtensionFor]
 const DEFAULT_REST_EXTENSION = Duration(minutes: 1);
@@ -50,6 +53,17 @@ Duration restExtensionForPage(SlotPageEntry? restPage) {
 Duration restExtensionFor(GymModeState state) {
   final current = state.isInitialized ? state.getSlotEntryPageByIndex() : null;
   return restExtensionForPage(current?.type == SlotPageType.timer ? current : null);
+}
+
+/// What the -/+ buttons of the timer notification take off or add, like the
+/// buttons of the rest timer in the app
+const REST_ADJUST_STEP = Duration(seconds: 15);
+
+/// The maximum rest of the set of the timer page [restPage], what the "max"
+/// button resets the countdown to; null without one
+Duration? maxRestForPage(SlotPageEntry? restPage) {
+  final maximum = restPage?.setConfigData?.maxRestTime;
+  return maximum == null ? null : Duration(seconds: maximum.round());
 }
 
 /// [extension] as m:ss, e.g. 1:30
@@ -135,7 +149,16 @@ class WorkoutControls extends Equatable {
 
   final bool canLogSet;
   final bool canSkipRest;
-  final bool canExtendRest;
+
+  /// Whether the -/+ buttons take off or add [REST_ADJUST_STEP]
+  final bool canShortenRest;
+  final bool canLengthenRest;
+
+  /// What the "max" button resets the countdown to, no button if null
+  final Duration? maxRest;
+
+  /// A rest timer: promoted to a Live Update with a chip in the status bar
+  final bool isTimer;
   final WorkoutNotificationPayload payload;
 
   /// Values of earlier logs that "log set" offers besides the planned ones
@@ -153,7 +176,10 @@ class WorkoutControls extends Equatable {
     this.chronometerCountsDown = false,
     this.canLogSet = false,
     this.canSkipRest = false,
-    this.canExtendRest = false,
+    this.canShortenRest = false,
+    this.canLengthenRest = false,
+    this.maxRest,
+    this.isTimer = false,
     this.quickLogs = const [],
     this.image,
   });
@@ -167,7 +193,10 @@ class WorkoutControls extends Equatable {
     chronometerCountsDown,
     canLogSet,
     canSkipRest,
-    canExtendRest,
+    canShortenRest,
+    canLengthenRest,
+    maxRest,
+    isTimer,
     payload,
     quickLogs,
     image,
@@ -181,6 +210,8 @@ class RestAlarm extends Equatable {
   final String body;
   final String? subtitle;
   final bool canLogSet;
+
+  /// "Extend rest" by [restExtensionFor], the iOS action
   final bool canExtendRest;
   final WorkoutNotificationPayload payload;
 
@@ -190,6 +221,15 @@ class RestAlarm extends Equatable {
 
   /// Without sound, only to switch the controls to the rest end
   final bool silent;
+
+  /// The expired rest timer (Android): stays ongoing and promoted like the
+  /// controls it replaces, its chronometer counting on below zero from [at],
+  /// with the timer buttons instead of "extend rest"
+  final bool isTimer;
+
+  /// See [WorkoutControls.canLengthenRest] and [WorkoutControls.maxRest]
+  final bool canLengthenRest;
+  final Duration? maxRest;
 
   const RestAlarm({
     required this.at,
@@ -202,6 +242,9 @@ class RestAlarm extends Equatable {
     this.quickLogs = const [],
     this.image,
     this.silent = false,
+    this.isTimer = false,
+    this.canLengthenRest = false,
+    this.maxRest,
   });
 
   @override
@@ -216,6 +259,9 @@ class RestAlarm extends Equatable {
     quickLogs,
     image,
     silent,
+    isTimer,
+    canLengthenRest,
+    maxRest,
   ];
 }
 
@@ -224,6 +270,9 @@ class WorkoutNotificationLabels extends Equatable {
   final String logSet;
   final String skipRest;
   final String extendRest;
+  final String shortenRest;
+  final String lengthenRest;
+  final String maxRest;
   final String controlsChannel;
   final String alarmChannel;
   final String notLoggedTitle;
@@ -233,6 +282,9 @@ class WorkoutNotificationLabels extends Equatable {
     required this.logSet,
     required this.skipRest,
     required this.extendRest,
+    required this.shortenRest,
+    required this.lengthenRest,
+    required this.maxRest,
     required this.controlsChannel,
     required this.alarmChannel,
     required this.notLoggedTitle,
@@ -246,6 +298,9 @@ class WorkoutNotificationLabels extends Equatable {
   }) : logSet = i18n.workoutNotificationLogSet,
        skipRest = i18n.workoutNotificationSkipRest,
        extendRest = i18n.workoutNotificationExtendRestBy(formatRestExtension(restExtension)),
+       shortenRest = i18n.workoutNotificationShortenRest(REST_ADJUST_STEP.inSeconds),
+       lengthenRest = i18n.workoutNotificationExtendRest(REST_ADJUST_STEP.inSeconds),
+       maxRest = i18n.workoutNotificationRestMax,
        controlsChannel = i18n.workoutNotificationChannel,
        alarmChannel = i18n.workoutNotificationAlarmChannel,
        notLoggedTitle = i18n.workoutNotificationNotLoggedTitle,
@@ -256,6 +311,9 @@ class WorkoutNotificationLabels extends Equatable {
     logSet,
     skipRest,
     extendRest,
+    shortenRest,
+    lengthenRest,
+    maxRest,
     controlsChannel,
     alarmChannel,
     notLoggedTitle,
@@ -324,6 +382,7 @@ Map<String, Log> quickLogChoices(SetConfigData planned, List<Log> recentLogs) {
 /// [withControls] is whether the ongoing notification is supported and wanted.
 /// [recentLogs] are earlier logs of the exercise of the set to log, see
 /// [quickLogChoices], and [mediaUrl] turns an image path into its URL.
+/// [appName] names the rest timer, e.g. "wger – Timer".
 WorkoutNotificationTarget buildWorkoutNotification(
   GymModeState state, {
   required DateTime now,
@@ -332,6 +391,7 @@ WorkoutNotificationTarget buildWorkoutNotification(
   required bool withControls,
   List<Log> recentLogs = const [],
   Uri? Function(String? path)? mediaUrl,
+  String appName = DEFAULT_APP_NAME,
 }) {
   if (!state.isInitialized) {
     return WorkoutNotificationTarget.none;
@@ -401,47 +461,75 @@ WorkoutNotificationTarget buildWorkoutNotification(
     final endsAt = state.restEndsAt;
     final restRunning = endsAt != null && endsAt.isAfter(now);
 
-    // Once the rest is over the notification shows the set, like the page
-    // after the rest. Logging during the rest is left to the set itself. With
-    // the alert off the controls still switch over, silently.
-    final alarm = restRunning && (state.alertOnCountdownEnd || withControls)
-        ? RestAlarm(
-            at: endsAt,
-            title: next == null ? i18n.workoutNotificationRestOver : exerciseName(next),
-            body: next == null ? nextText : setOf(next),
-            subtitle: next == null ? null : i18n.workoutNotificationRestOver,
-            canLogSet: next != null && canLog(next),
-            // Starts another short countdown
-            canExtendRest: true,
-            payload: actionPayload,
-            quickLogs: next == null ? const [] : quickLogs(next),
-            image: image(next ?? following),
-            silent: !state.alertOnCountdownEnd,
-          )
-        : null;
+    final maxRest = maxRestForPage(current);
+    final timerTitle = i18n.workoutNotificationTimer(appName);
+    final expiredTitle = i18n.workoutNotificationTimerExpired(appName);
+    final logNext = next != null && canLog(next);
+
+    // With the controls, the alarm is the same timer past its end: it counts
+    // on below zero and sounds once, no separate notification. Without them
+    // (iOS, or turned off) the alarm shows the set, like the page after the
+    // rest. With the alert off the controls still switch over, silently.
+    final RestAlarm? alarm;
+    if (!restRunning || !(state.alertOnCountdownEnd || withControls)) {
+      alarm = null;
+    } else if (withControls) {
+      alarm = RestAlarm(
+        at: endsAt,
+        title: expiredTitle,
+        body: nextText,
+        isTimer: true,
+        canLengthenRest: true,
+        maxRest: maxRest,
+        canLogSet: logNext,
+        payload: actionPayload,
+        quickLogs: logNext ? quickLogs(next) : const [],
+        image: image(following),
+        silent: !state.alertOnCountdownEnd,
+      );
+    } else {
+      alarm = RestAlarm(
+        at: endsAt,
+        title: next == null ? i18n.workoutNotificationRestOver : exerciseName(next),
+        body: next == null ? nextText : setOf(next),
+        subtitle: next == null ? null : i18n.workoutNotificationRestOver,
+        canLogSet: logNext,
+        // Starts another short countdown
+        canExtendRest: true,
+        payload: actionPayload,
+        quickLogs: next == null ? const [] : quickLogs(next),
+        image: image(next ?? following),
+      );
+    }
 
     final WorkoutControls? controls;
     if (!withControls) {
       controls = null;
-    } else if (endsAt != null && !restRunning && next != null) {
+    } else if (endsAt != null) {
+      // Past the end the countdown goes on below zero, like the app's. The
+      // minus button only while there is rest left to take off.
       controls = WorkoutControls(
-        title: exerciseName(next),
-        body: setOf(next),
-        subtitle: i18n.workoutNotificationRestOver,
-        canLogSet: canLog(next),
-        canExtendRest: true,
+        title: restRunning ? timerTitle : expiredTitle,
+        body: nextText,
+        chronometerAt: endsAt,
+        chronometerCountsDown: true,
+        isTimer: true,
+        canShortenRest: restRunning,
+        canLengthenRest: true,
+        maxRest: maxRest,
+        canLogSet: !restRunning && logNext,
         payload: actionPayload,
-        quickLogs: quickLogs(next),
-        image: image(next),
+        quickLogs: !restRunning && logNext ? quickLogs(next) : const [],
+        image: image(following),
       );
     } else {
+      // A rest without a set duration counts up until skipped
       controls = WorkoutControls(
-        title: endsAt != null && !restRunning ? i18n.workoutNotificationRestOver : i18n.pause,
+        title: timerTitle,
         body: nextText,
-        chronometerAt: endsAt == null ? state.restStartedAt : (restRunning ? endsAt : null),
-        chronometerCountsDown: restRunning,
+        chronometerAt: state.restStartedAt,
+        isTimer: true,
         canSkipRest: true,
-        canExtendRest: endsAt != null,
         payload: actionPayload,
         image: image(following),
       );

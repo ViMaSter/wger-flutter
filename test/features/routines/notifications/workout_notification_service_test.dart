@@ -40,6 +40,9 @@ void main() {
     logSet: 'Log set',
     skipRest: 'Skip rest',
     extendRest: '+30 s',
+    shortenRest: '−15 s',
+    lengthenRest: '+15 s',
+    maxRest: 'Max',
     controlsChannel: 'Workout',
     alarmChannel: 'Rest alarm',
     notLoggedTitle: 'Set not logged',
@@ -159,24 +162,116 @@ void main() {
     expect(scheduled()['actions'], anyOf(isNull, isEmpty));
   });
 
-  test('Rest actions in Android order: skip, +30 s, log', () async {
-    await LocalWorkoutNotificationService().showControls(
-      WorkoutControls(
-        title: 'Pause',
-        body: 'Next: Bench press',
-        payload: payload,
-        canSkipRest: true,
-        canExtendRest: true,
-        canLogSet: true,
-      ),
-      labels,
-    );
+  List<Object?> actionIds(Map<Object?, Object?> details) =>
+      (details['actions'] as List).map((a) => (a as Map)['id']).toList();
 
-    expect((shown()['actions'] as List).map((a) => (a as Map)['id']), [
-      WORKOUT_NOTIFICATION_ACTION_SKIP_REST,
-      WORKOUT_NOTIFICATION_ACTION_EXTEND_REST,
-      WORKOUT_NOTIFICATION_ACTION_LOG_SET,
-    ]);
+  group('Rest timer', () {
+    test('A running rest is a Live Update with -/+ and max, in app order', () async {
+      final endsAt = DateTime.now().add(const Duration(minutes: 2));
+      await LocalWorkoutNotificationService().showControls(
+        WorkoutControls(
+          title: 'wger – Timer',
+          body: 'Next: Bench press',
+          payload: payload,
+          isTimer: true,
+          chronometerAt: endsAt,
+          chronometerCountsDown: true,
+          canShortenRest: true,
+          canLengthenRest: true,
+          maxRest: const Duration(minutes: 3),
+        ),
+        labels,
+      );
+
+      expect(shown()['requestPromotedOngoing'], isTrue);
+      expect(shown()['ongoing'], isTrue);
+      expect(shown()['usesChronometer'], isTrue);
+      expect(shown()['chronometerCountDown'], isTrue);
+      expect(shown()['when'], endsAt.millisecondsSinceEpoch);
+      expect(actionIds(shown()), [
+        WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST,
+        WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST,
+        WORKOUT_NOTIFICATION_ACTION_MAX_REST,
+      ]);
+      expect((shown()['actions'] as List).map((a) => (a as Map)['title']), [
+        '−15 s',
+        '+15 s',
+        'Max',
+      ]);
+    });
+
+    test('Other controls are not promoted', () async {
+      await LocalWorkoutNotificationService().showControls(
+        WorkoutControls(title: 'Bench press', body: 'Set 2 of 3', payload: payload),
+        labels,
+      );
+
+      expect(shown()['requestPromotedOngoing'], isFalse);
+    });
+
+    test('Its end replaces it in place: still promoted, counting on, sounding', () async {
+      final at = DateTime.now().add(const Duration(minutes: 2));
+      await LocalWorkoutNotificationService().scheduleRestAlarm(
+        RestAlarm(
+          at: at,
+          title: 'wger – Timer expired',
+          body: 'Next: Bench press',
+          payload: payload,
+          isTimer: true,
+          canLengthenRest: true,
+          maxRest: const Duration(minutes: 3),
+          canLogSet: true,
+        ),
+        labels,
+      );
+
+      final call = calls.singleWhere((c) => c.method == 'zonedSchedule').arguments as Map;
+      // The id of the controls, so no second notification
+      expect(call['id'], 1);
+      expect(scheduled()['channelId'], 'rest_alarm_v2');
+      expect(scheduled()['playSound'], isTrue);
+      expect(scheduled()['enableVibration'], isTrue);
+      expect(scheduled()['requestPromotedOngoing'], isTrue);
+      expect(scheduled()['ongoing'], isTrue);
+      expect(scheduled()['autoCancel'], isFalse);
+      expect(scheduled()['usesChronometer'], isTrue);
+      expect(scheduled()['chronometerCountDown'], isTrue);
+      expect(scheduled()['when'], at.millisecondsSinceEpoch);
+      expect(actionIds(scheduled()), [
+        WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST,
+        WORKOUT_NOTIFICATION_ACTION_MAX_REST,
+        WORKOUT_NOTIFICATION_ACTION_LOG_SET,
+      ]);
+    });
+
+    test('Without the controls the alarm stays a plain one that can be dismissed', () async {
+      await LocalWorkoutNotificationService().scheduleRestAlarm(alarm(canExtendRest: true), labels);
+
+      expect(scheduled()['requestPromotedOngoing'], isFalse);
+      expect(scheduled()['ongoing'], isFalse);
+      expect(scheduled()['autoCancel'], isTrue);
+      expect(scheduled()['usesChronometer'], isFalse);
+      expect(actionIds(scheduled()), [
+        WORKOUT_NOTIFICATION_ACTION_EXTEND_REST,
+        WORKOUT_NOTIFICATION_ACTION_LOG_SET,
+      ]);
+    });
+
+    test('A count-up rest keeps its skip button', () async {
+      await LocalWorkoutNotificationService().showControls(
+        WorkoutControls(
+          title: 'wger – Timer',
+          body: '',
+          payload: payload,
+          isTimer: true,
+          chronometerAt: DateTime.now(),
+          canSkipRest: true,
+        ),
+        labels,
+      );
+
+      expect(actionIds(shown()), [WORKOUT_NOTIFICATION_ACTION_SKIP_REST]);
+    });
   });
 
   test('A silent alarm stands in for the controls, without sound', () async {

@@ -88,26 +88,70 @@ void main() {
   });
 
   group('Rest', () {
-    test('A running countdown gets an alarm at its end and counting down controls', () {
+    test("A running countdown is the app's timer with -/+ and max", () {
       final endsAt = now.add(const Duration(seconds: 90));
       final timer = timers().first;
+      timer.setConfigData!.maxRestTime = 180;
       onPage(timer, restStartedAt: now, restEndsAt: endsAt);
 
-      final target = build();
+      final controls = build().controls!;
 
-      // The alarm already shows the set, like the page after the rest
-      expect(target.alarm!.at, endsAt);
-      expect(target.alarm!.title, 'Bench press');
-      expect(target.alarm!.subtitle, 'Rest is over');
-      expect(target.alarm!.body, 'Set 2 of 3 · 3x100kg');
-      expect(target.alarm!.canLogSet, isTrue);
-      expect(target.alarm!.payload.logSlotKey, logs()[1].key);
-      expect(target.controls!.title, 'Pause');
-      expect(target.controls!.body, 'Next: Bench press 3x100kg');
-      expect(target.controls!.chronometerAt, endsAt);
-      expect(target.controls!.chronometerCountsDown, isTrue);
-      expect(target.controls!.canSkipRest, isTrue);
-      expect(target.controls!.payload.restSlotKey, timer.key);
+      expect(controls.title, 'wger – Timer');
+      expect(controls.body, 'Next: Bench press 3x100kg');
+      expect(controls.isTimer, isTrue);
+      expect(controls.chronometerAt, endsAt);
+      expect(controls.chronometerCountsDown, isTrue);
+      expect(controls.canShortenRest, isTrue);
+      expect(controls.canLengthenRest, isTrue);
+      expect(controls.maxRest, const Duration(seconds: 180));
+      // Three buttons at most: no skip, no log while the rest runs
+      expect(controls.canSkipRest, isFalse);
+      expect(controls.canLogSet, isFalse);
+      expect(controls.payload.restSlotKey, timer.key);
+    });
+
+    test('Names the timer after the app', () {
+      onPage(timers().first, restStartedAt: now, restEndsAt: now.add(const Duration(seconds: 90)));
+
+      final target = buildWorkoutNotification(
+        notifier.state,
+        now: now,
+        i18n: i18n,
+        languageCode: 'en',
+        withControls: true,
+        appName: 'wger - debug',
+      );
+
+      expect(target.controls!.title, 'wger - debug – Timer');
+      expect(target.alarm!.title, 'wger - debug – Timer expired');
+    });
+
+    test('No max button without a maximum rest', () {
+      // The fixture rests 120 s, without a maximum
+      onPage(timers().first, restStartedAt: now, restEndsAt: now.add(const Duration(seconds: 90)));
+
+      expect(build().controls!.maxRest, isNull);
+      expect(build().alarm!.maxRest, isNull);
+    });
+
+    test('The alarm is the same timer past its end, counting on with +/max/log', () {
+      final endsAt = now.add(const Duration(seconds: 90));
+      final timer = timers().first;
+      timer.setConfigData!.maxRestTime = 180;
+      onPage(timer, restStartedAt: now, restEndsAt: endsAt);
+
+      final alarm = build().alarm!;
+
+      expect(alarm.at, endsAt);
+      expect(alarm.isTimer, isTrue);
+      expect(alarm.title, 'wger – Timer expired');
+      expect(alarm.body, 'Next: Bench press 3x100kg');
+      expect(alarm.silent, isFalse);
+      expect(alarm.canLengthenRest, isTrue);
+      expect(alarm.maxRest, const Duration(seconds: 180));
+      expect(alarm.canLogSet, isTrue);
+      expect(alarm.payload.logSlotKey, logs()[1].key);
+      expect(alarm.payload.restSlotKey, timer.key);
     });
 
     test('With the alert off the controls still switch at the rest end, silently', () {
@@ -117,48 +161,49 @@ void main() {
 
       final target = build();
       expect(target.alarm!.silent, isTrue);
+      expect(target.alarm!.isTimer, isTrue);
       expect(target.alarm!.at, endsAt);
-      expect(target.alarm!.body, 'Set 2 of 3 · 3x100kg');
       expect(target.controls, isNotNull);
 
       // Without controls there is nothing to switch
       expect(build(withControls: false), WorkoutNotificationTarget.none);
     });
 
-    test('With the alert on the alarm is not silent', () {
-      onPage(timers().first, restStartedAt: now, restEndsAt: now.add(const Duration(seconds: 90)));
-
-      expect(build().alarm!.silent, isFalse);
-    });
-
-    test('A rest that is already over has no alarm and no chronometer', () {
+    test('A rest that is over counts on below zero, without the minus button', () {
+      final endsAt = now.subtract(const Duration(seconds: 30));
       onPage(
         timers().first,
         restStartedAt: now.subtract(const Duration(seconds: 150)),
-        restEndsAt: now.subtract(const Duration(seconds: 30)),
+        restEndsAt: endsAt,
       );
 
       final target = build();
 
       expect(target.alarm, isNull);
-      expect(target.controls!.title, 'Bench press');
-      expect(target.controls!.subtitle, 'Rest is over');
-      expect(target.controls!.body, 'Set 2 of 3 · 3x100kg');
-      expect(target.controls!.chronometerAt, isNull);
+      expect(target.controls!.title, 'wger – Timer expired');
+      expect(target.controls!.isTimer, isTrue);
+      expect(target.controls!.chronometerAt, endsAt);
+      expect(target.controls!.chronometerCountsDown, isTrue);
+      expect(target.controls!.canShortenRest, isFalse);
+      expect(target.controls!.canLengthenRest, isTrue);
       expect(target.controls!.canLogSet, isTrue);
-      expect(target.controls!.canSkipRest, isFalse);
     });
 
-    test('A rest that counts up shows the time since its start', () {
+    test('A rest that counts up shows the time since its start and can be skipped', () {
       final startedAt = now.subtract(const Duration(seconds: 20));
       onPage(timers().last, restStartedAt: startedAt);
 
       final target = build();
 
       expect(target.alarm, isNull);
-      expect(target.controls!.title, 'Pause');
+      expect(target.controls!.title, 'wger – Timer');
+      expect(target.controls!.isTimer, isTrue);
       expect(target.controls!.chronometerAt, startedAt);
       expect(target.controls!.chronometerCountsDown, isFalse);
+      expect(target.controls!.canSkipRest, isTrue);
+      // Nothing to shorten or lengthen without an end
+      expect(target.controls!.canShortenRest, isFalse);
+      expect(target.controls!.canLengthenRest, isFalse);
     });
 
     test('The last rest of an exercise names the next one but cannot log it', () {
@@ -167,10 +212,10 @@ void main() {
 
       final target = build();
 
-      expect(target.alarm!.title, 'Rest is over');
       expect(target.alarm!.body, 'Next: Side raises 12x10kg');
       expect(target.alarm!.canLogSet, isFalse);
       expect(target.controls!.canLogSet, isFalse);
+      expect(build(withControls: false).alarm!.title, 'Rest is over');
     });
 
     test('A next set without planned values cannot be logged', () {
@@ -182,13 +227,20 @@ void main() {
       expect(build().alarm!.canLogSet, isFalse);
     });
 
-    test('Without controls only the alarm remains', () {
-      onPage(timers().first, restStartedAt: now, restEndsAt: now.add(const Duration(seconds: 90)));
+    test('Without controls only the alarm remains, showing the set like the next page', () {
+      final endsAt = now.add(const Duration(seconds: 90));
+      onPage(timers().first, restStartedAt: now, restEndsAt: endsAt);
 
       final target = build(withControls: false);
 
-      expect(target.alarm, isNotNull);
       expect(target.controls, isNull);
+      expect(target.alarm!.isTimer, isFalse);
+      expect(target.alarm!.at, endsAt);
+      expect(target.alarm!.title, 'Bench press');
+      expect(target.alarm!.subtitle, 'Rest is over');
+      expect(target.alarm!.body, 'Set 2 of 3 · 3x100kg');
+      expect(target.alarm!.canExtendRest, isTrue);
+      expect(target.alarm!.canLogSet, isTrue);
     });
   });
 
@@ -232,21 +284,17 @@ void main() {
       expect(target.controls!.canLogSet, isFalse);
     });
 
-    test('"Extend rest" only for a countdown, also once it is over', () {
-      final timer = timers().first;
-      onPage(timer, restStartedAt: now, restEndsAt: now.add(const Duration(seconds: 90)));
-      expect(build().controls!.canExtendRest, isTrue);
-      expect(build().alarm!.canExtendRest, isTrue);
-
-      onPage(timer, restStartedAt: now, restEndsAt: now.subtract(const Duration(seconds: 1)));
-      expect(build().controls!.canExtendRest, isTrue);
-
-      // The other exercise has no rest time and the countdown setting is off
-      onPage(timers().last, restStartedAt: now);
-      expect(build().controls!.canExtendRest, isFalse);
-
+    test('The timer buttons only on a timer page', () {
+      timers().first.setConfigData!.maxRestTime = 180;
+      logs()[1].setConfigData!.maxRestTime = 180;
       onPage(logs()[1]);
-      expect(build().controls!.canExtendRest, isFalse);
+
+      final controls = build().controls!;
+
+      expect(controls.isTimer, isFalse);
+      expect(controls.canShortenRest, isFalse);
+      expect(controls.canLengthenRest, isFalse);
+      expect(controls.maxRest, isNull);
     });
 
     test('Without controls there is nothing outside a rest', () {

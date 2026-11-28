@@ -616,6 +616,77 @@ void main() {
       expect(gymState.state.restEndsAt, endsAt);
     });
 
+    group('Timer buttons', () {
+      Future<void> press(String actionId, {DateTime? at, String? restSlotKey}) =>
+          withClock(Clock.fixed(at ?? now), () async {
+            await container
+                .read(workoutNotificationControllerProvider)
+                .handleAction(
+                  actionId,
+                  payloadFor(
+                    restSlotKey: restSlotKey ?? slotPage(gymState.state.currentPage).key,
+                  ),
+                );
+            await settle();
+          });
+
+      test('-/+ move the end of the rest by 15 s, like the app, and the alarm along', () async {
+        restOf(restTime: 60, maxRestTime: 150);
+        await startRest();
+        final endsAt = gymState.state.restEndsAt!;
+
+        await press(WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST);
+        expect(gymState.state.restEndsAt, endsAt.add(const Duration(seconds: 15)));
+        final alarms = verify(service.scheduleRestAlarm(captureAny, any)).captured;
+        expect((alarms.last as RestAlarm).at, endsAt.add(const Duration(seconds: 15)));
+
+        await press(WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST);
+        await press(WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST);
+        expect(gymState.state.restEndsAt, endsAt.subtract(const Duration(seconds: 15)));
+      });
+
+      test('Max restarts the rest with the maximum of the set from now', () async {
+        restOf(restTime: 60, maxRestTime: 150);
+        await startRest();
+        final later = now.add(const Duration(seconds: 40));
+
+        await press(WORKOUT_NOTIFICATION_ACTION_MAX_REST, at: later);
+
+        expect(gymState.state.restEndsAt, later.add(const Duration(seconds: 150)));
+      });
+
+      test('Max without a maximum and minus once the rest is over change nothing', () async {
+        restOf(restTime: 60);
+        await startRest();
+        final endsAt = gymState.state.restEndsAt!;
+
+        await press(WORKOUT_NOTIFICATION_ACTION_MAX_REST);
+        expect(gymState.state.restEndsAt, endsAt);
+
+        await press(
+          WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST,
+          at: endsAt.add(const Duration(seconds: 5)),
+        );
+        expect(gymState.state.restEndsAt, endsAt);
+      });
+
+      test('Buttons of an earlier rest change nothing', () async {
+        restOf(restTime: 60, maxRestTime: 150);
+        await startRest();
+        final endsAt = gymState.state.restEndsAt!;
+
+        for (final action in [
+          WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST,
+          WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST,
+          WORKOUT_NOTIFICATION_ACTION_MAX_REST,
+        ]) {
+          await press(action, restSlotKey: 'another rest');
+        }
+
+        expect(gymState.state.restEndsAt, endsAt);
+      });
+    });
+
     test('A stale action changes nothing but shows the notification again', () async {
       await startRest();
       final rest = gymState.state.currentPage;

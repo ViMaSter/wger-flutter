@@ -36,6 +36,11 @@ const WORKOUT_NOTIFICATION_ACTION_LOG_SET = 'log_set';
 const WORKOUT_NOTIFICATION_ACTION_SKIP_REST = 'skip_rest';
 const WORKOUT_NOTIFICATION_ACTION_EXTEND_REST = 'extend_rest';
 
+/// The buttons of the rest timer: -/+ [REST_ADJUST_STEP], reset to the maximum
+const WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST = 'shorten_rest';
+const WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST = 'lengthen_rest';
+const WORKOUT_NOTIFICATION_ACTION_MAX_REST = 'max_rest';
+
 /// The main isolate receives notification actions on this port
 const WORKOUT_NOTIFICATION_PORT = 'wger_workout_actions';
 
@@ -319,9 +324,11 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
               : AudioAttributesUsage.alarm,
           importance: alarm.silent ? Importance.low : Importance.high,
           priority: alarm.silent ? Priority.low : Priority.high,
-          // A silent one stands in for the controls, so it stays like them
-          ongoing: alarm.silent,
-          autoCancel: !alarm.silent,
+          // A silent one stands in for the controls, the timer replaces them,
+          // so both stay like them
+          ongoing: alarm.silent || alarm.isTimer,
+          autoCancel: !alarm.silent && !alarm.isTimer,
+          requestPromotedOngoing: alarm.isTimer,
           playSound: !alarm.silent,
           enableVibration: !alarm.silent,
           category: alarm.silent
@@ -329,12 +336,28 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
               : AndroidNotificationCategory.alarm,
           visibility: NotificationVisibility.public,
           subText: alarm.subtitle,
+          // The timer counts on below zero from the end of the rest
+          showWhen: alarm.isTimer,
+          when: alarm.isTimer ? alarm.at.millisecondsSinceEpoch : null,
+          usesChronometer: alarm.isTimer,
+          chronometerCountDown: alarm.isTimer,
           largeIcon: await _cachedImage(alarm.image),
-          actions: [
-            if (alarm.canExtendRest)
-              AndroidNotificationAction(WORKOUT_NOTIFICATION_ACTION_EXTEND_REST, labels.extendRest),
-            if (alarm.canLogSet) _logSetAction(alarm.quickLogs, labels),
-          ],
+          actions: alarm.isTimer
+              ? _timerActions(
+                  labels,
+                  canLengthen: alarm.canLengthenRest,
+                  maxRest: alarm.maxRest,
+                  canLogSet: alarm.canLogSet,
+                  quickLogs: alarm.quickLogs,
+                )
+              : [
+                  if (alarm.canExtendRest)
+                    AndroidNotificationAction(
+                      WORKOUT_NOTIFICATION_ACTION_EXTEND_REST,
+                      labels.extendRest,
+                    ),
+                  if (alarm.canLogSet) _logSetAction(alarm.quickLogs, labels),
+                ],
         ),
         iOS: DarwinNotificationDetails(
           subtitle: alarm.subtitle,
@@ -365,6 +388,9 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
           priority: Priority.low,
           ongoing: true,
           autoCancel: false,
+          // A rest timer becomes a Live Update: a chip in the status bar,
+          // buttons on the lock screen. Android 16+ only, ignored before.
+          requestPromotedOngoing: controls.isTimer,
           onlyAlertOnce: true,
           playSound: false,
           enableVibration: false,
@@ -379,14 +405,39 @@ class LocalWorkoutNotificationService implements WorkoutNotificationService {
           actions: [
             if (controls.canSkipRest)
               AndroidNotificationAction(WORKOUT_NOTIFICATION_ACTION_SKIP_REST, labels.skipRest),
-            if (controls.canExtendRest)
-              AndroidNotificationAction(WORKOUT_NOTIFICATION_ACTION_EXTEND_REST, labels.extendRest),
-            if (controls.canLogSet) _logSetAction(controls.quickLogs, labels),
+            ..._timerActions(
+              labels,
+              canShorten: controls.canShortenRest,
+              canLengthen: controls.canLengthenRest,
+              maxRest: controls.maxRest,
+              canLogSet: controls.canLogSet,
+              quickLogs: controls.quickLogs,
+            ),
           ],
         ),
       ),
     );
   }
+
+  /// The buttons of the rest timer in app order, then "log set". Android shows
+  /// three at most: the content never asks for more (-/+/max while the rest
+  /// runs, +/max/log once it is over).
+  List<AndroidNotificationAction> _timerActions(
+    WorkoutNotificationLabels labels, {
+    bool canShorten = false,
+    bool canLengthen = false,
+    Duration? maxRest,
+    bool canLogSet = false,
+    List<String> quickLogs = const [],
+  }) => [
+    if (canShorten)
+      AndroidNotificationAction(WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST, labels.shortenRest),
+    if (canLengthen)
+      AndroidNotificationAction(WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST, labels.lengthenRest),
+    if (maxRest != null)
+      AndroidNotificationAction(WORKOUT_NOTIFICATION_ACTION_MAX_REST, labels.maxRest),
+    if (canLogSet) _logSetAction(quickLogs, labels),
+  ];
 
   /// "Log set" logs the planned values, Android offers the [quickLogs] next to
   /// it. Without free text, tapping the button itself sends no input.

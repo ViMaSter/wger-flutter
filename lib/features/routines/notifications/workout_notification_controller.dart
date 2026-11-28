@@ -24,6 +24,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:wger/core/app_settings_notifier.dart';
 import 'package:wger/core/network/wger_base.dart';
 import 'package:wger/features/routines/models/log.dart';
@@ -81,6 +82,9 @@ class WorkoutNotificationController {
   int? _recentLogsExerciseId;
   List<Log> _recentLogs = const [];
 
+  /// Names the rest timer, the platform's label once known (flavors differ)
+  String appName = DEFAULT_APP_NAME;
+
   WorkoutNotificationController(this._ref, this._service);
 
   /// The locale the app renders in, also without a BuildContext
@@ -119,6 +123,7 @@ class WorkoutNotificationController {
       withControls: withControls,
       recentLogs: _recentLogs,
       mediaUrl: _ref.read(mediaUrlBuilderProvider),
+      appName: appName,
     );
 
     final target = inForeground || !_ref.read(gymModeVisibleProvider)
@@ -302,6 +307,24 @@ class WorkoutNotificationController {
             if (state.getSlotEntryPageByIndex()?.key == payload.restSlotKey) {
               notifier.extendRest(restExtensionFor(state));
             }
+          case WORKOUT_NOTIFICATION_ACTION_SHORTEN_REST:
+            // Like the app's minus button, only while there is rest left
+            final endsAt = state.restEndsAt;
+            if (state.getSlotEntryPageByIndex()?.key == payload.restSlotKey &&
+                endsAt != null &&
+                endsAt.isAfter(clock.now())) {
+              notifier.extendRest(-REST_ADJUST_STEP);
+            }
+          case WORKOUT_NOTIFICATION_ACTION_LENGTHEN_REST:
+            if (state.getSlotEntryPageByIndex()?.key == payload.restSlotKey) {
+              notifier.extendRest(REST_ADJUST_STEP);
+            }
+          case WORKOUT_NOTIFICATION_ACTION_MAX_REST:
+            final current = state.getSlotEntryPageByIndex();
+            final maxRest = maxRestForPage(current);
+            if (current?.key == payload.restSlotKey && maxRest != null) {
+              notifier.resetRest(maxRest);
+            }
         }
       } catch (e) {
         _logger.warning('Notification action $actionId failed: $e');
@@ -329,6 +352,19 @@ final workoutNotificationControllerProvider = Provider<WorkoutNotificationContro
     return controller;
   }
   unawaited(service.initialize(controller.labels));
+  unawaited(
+    PackageInfo.fromPlatform()
+        .then((info) {
+          if (info.appName.isNotEmpty) {
+            controller.appName = info.appName;
+            controller.update();
+          }
+        })
+        .catchError((Object e) {
+          // Only the timer's title, the default name will do
+          Logger('WorkoutNotificationController').fine('No app name: $e');
+        }),
+  );
 
   // A tap on the reminder of missing entries opens the first one
   final taps = service.taps.listen((payload) {
